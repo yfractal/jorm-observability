@@ -58,11 +58,10 @@ RSpec.describe TraceToMetric, type: :model do
         dimensions: [ "http.method", "http.route" ]
       )
 
-      conn = ActiveRecord::Base.connection
-      expect(conn.table_exists?("http_counter")).to eq(true)
-      columns = conn.columns("http_counter").map(&:name)
+      expect(Greptime::Connection.table_exists?("http_counter")).to eq(true)
+      columns = Greptime::Connection.column_names("http_counter")
       expect(columns).to include("bucket", "http_method", "http_route", "value")
-      expect(definition.version).to eq(1)
+      expect(definition.version.to_i).to eq(1)
     end
 
     it "adds new dimensions and bumps version on update" do
@@ -75,10 +74,9 @@ RSpec.describe TraceToMetric, type: :model do
       definition.update!(dimensions: [ "db.system", "net.peer.name" ])
       definition.reload
 
-      conn = ActiveRecord::Base.connection
-      columns = conn.columns("redis_counter").map(&:name)
+      columns = Greptime::Connection.column_names("redis_counter")
       expect(columns).to include("db_system", "net_peer_name")
-      expect(definition.version).to eq(2)
+      expect(definition.version.to_i).to eq(2)
     end
   end
 
@@ -90,7 +88,7 @@ RSpec.describe TraceToMetric, type: :model do
         dimensions: []
       )
 
-      expect(described_class.for_span_name("http")).to eq(definition)
+      expect(described_class.for_span_name("http").name).to eq(definition.name)
       expect(described_class.for_span_name("missing")).to be_nil
     end
   end

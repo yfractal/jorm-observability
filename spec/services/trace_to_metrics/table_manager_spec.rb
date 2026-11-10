@@ -11,9 +11,7 @@ RSpec.describe TraceToMetrics::TableManager, :no_transaction do
   end
 
   after do
-    conn = ActiveRecord::Base.connection
-    conn.drop_table("http_counter", if_exists: true)
-    conn.drop_table("redis_counter", if_exists: true)
+    drop_metric_tables("http_counter", "redis_counter")
   end
 
   describe ".create!" do
@@ -22,23 +20,11 @@ RSpec.describe TraceToMetrics::TableManager, :no_transaction do
 
       described_class.create!(definition)
 
-      conn = ActiveRecord::Base.connection
-      expect(conn.table_exists?("http_counter")).to eq(true)
+      expect(Greptime::Connection.table_exists?("http_counter")).to eq(true)
 
-      columns = conn.columns("http_counter")
-      expect(columns.map(&:name)).to include("bucket", "http_method", "http_route", "value", "created_at", "updated_at")
-
-      method_col = columns.find { |c| c.name == "http_method" }
-      route_col = columns.find { |c| c.name == "http_route" }
-      expect(method_col.null).to eq(false)
-      expect(method_col.default).to eq("")
-      expect(route_col.null).to eq(false)
-      expect(route_col.default).to eq("")
-
-      index = conn.indexes("http_counter").find { |i| i.name == "index_http_counter_on_bucket_dimensions" }
-      expect(index).to be_present
-      expect(index.unique).to eq(true)
-      expect(index.columns).to eq(%w[bucket http_method http_route])
+      columns = Greptime::Connection.column_names("http_counter")
+      expect(columns).to include("bucket", "http_method", "http_route", "value")
+      expect(columns).not_to include("created_at", "updated_at")
     end
 
     it "raises when the table already exists" do
@@ -61,23 +47,15 @@ RSpec.describe TraceToMetrics::TableManager, :no_transaction do
   end
 
   describe ".add_dimensions!" do
-    it "adds columns and rebuilds the unique index" do
+    it "adds columns for new dimensions" do
       definition = build_definition(dimensions: [ "http.method" ])
       described_class.create!(definition)
 
       definition.dimensions = [ "http.method", "http.route" ]
       described_class.add_dimensions!(definition, [ "http.route" ])
 
-      conn = ActiveRecord::Base.connection
-      columns = conn.columns("http_counter")
-      expect(columns.map(&:name)).to include("http_route")
-
-      route_col = columns.find { |c| c.name == "http_route" }
-      expect(route_col.null).to eq(false)
-      expect(route_col.default).to eq("")
-
-      index = conn.indexes("http_counter").find { |i| i.name == "index_http_counter_on_bucket_dimensions" }
-      expect(index.columns).to eq(%w[bucket http_method http_route])
+      columns = Greptime::Connection.column_names("http_counter")
+      expect(columns).to include("http_route")
     end
   end
 end

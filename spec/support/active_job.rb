@@ -7,12 +7,6 @@ RSpec.configure do |config|
   ensure
     clear_enqueued_jobs
     clear_performed_jobs
-
-    TraceToMetric.find_each do |definition|
-      conn = ActiveRecord::Base.connection
-      conn.drop_table(definition.name, if_exists: true)
-    end
-    TraceToMetric.delete_all
-    Trace.delete_all
+    GreptimeHelpers.cleanup_greptime_data!
   end
 end

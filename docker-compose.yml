@@ -1,0 +1,27 @@
+services:
+  greptimedb:
+    image: greptime/greptimedb:v1.4.0-nightly-20261028
+    command: standalone start --http-addr 0.0.0.0:4000 --rpc-bind-addr 0.0.0.0:4001 --mysql-addr 0.0.0.0:4002 --postgres-addr 0.0.0.0:4003
+    ports:
+      - "4000:4000"
+      - "4001:4001"
+      - "4002:4002"
+      - "4003:4003"
+
+    volumes:
+      - greptime_data:/tmp/greptimedb
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: jorm
+      POSTGRES_PASSWORD: jorm
+      POSTGRES_DB: jorm_observability_development_queue
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_queue_data:/var/lib/postgresql/data
+
+volumes:
+  greptime_data:
+  postgres_queue_data:

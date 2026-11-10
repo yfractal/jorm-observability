@@ -16,6 +16,26 @@ module TraceToMetrics
       timestamp.change(usec: 0)
     end
 
+    def self.summed_rows(table_name, dimension_columns = nil)
+      connection = Greptime::Connection
+      table = connection.quote_table_name(table_name)
+      dims = Array(dimension_columns)
+      if dims.empty?
+        connection.exec_query(
+          "SELECT bucket, SUM(value) AS value FROM #{table} GROUP BY bucket ORDER BY bucket",
+          "TraceToMetrics::Injector Sum"
+        ).to_a
+      else
+        quoted_dims = dims.map { |c| connection.quote_column_name(c) }
+        select_list = [ "bucket", *quoted_dims, "SUM(value) AS value" ].join(", ")
+        group_list = [ "bucket", *quoted_dims ].join(", ")
+        connection.exec_query(
+          "SELECT #{select_list} FROM #{table} GROUP BY #{group_list} ORDER BY bucket",
+          "TraceToMetrics::Injector Sum"
+        ).to_a
+      end
+    end
+
     def initialize(trace, definition)
       @trace = trace
       @definition = definition
@@ -30,49 +50,36 @@ module TraceToMetrics
         return nil
       end
 
-      upsert_counter!
+      append_counter!
       nil
     end
 
     private
 
-    def upsert_counter!
-      connection = ActiveRecord::Base.connection
+    def append_counter!
+      connection = Greptime::Connection
       table = connection.quote_table_name(@definition.name)
       dimension_columns = @definition.dimension_columns
       dimension_values = resolve_dimensions
 
-      columns = [ "bucket", *dimension_columns, "value", "created_at", "updated_at" ]
+      columns = [ "bucket", *dimension_columns, "value" ]
       quoted_columns = columns.map { |c| connection.quote_column_name(c) }.join(", ")
 
-      now = Time.current
       binds = [
         self.class.bucket_for(@trace.timestamp),
         *dimension_columns.map { |c| dimension_values[c] },
-        1,
-        now,
-        now
+        1
       ]
       placeholders = Array.new(binds.size, "?").join(", ")
-
-      conflict_columns = [ "bucket", *dimension_columns ]
-        .map { |c| connection.quote_column_name(c) }
-        .join(", ")
-      quoted_value = connection.quote_column_name("value")
-      quoted_updated_at = connection.quote_column_name("updated_at")
 
       sql = <<~SQL.squish
         INSERT INTO #{table} (#{quoted_columns})
         VALUES (#{placeholders})
-        ON CONFLICT (#{conflict_columns})
-        DO UPDATE SET
-          #{quoted_value} = #{table}.#{quoted_value} + 1,
-          #{quoted_updated_at} = EXCLUDED.#{quoted_updated_at}
       SQL
 
-      connection.exec_insert(
+      connection.exec_query(
         ActiveRecord::Base.sanitize_sql_array([ sql, *binds ]),
-        "TraceToMetrics::Injector Upsert"
+        "TraceToMetrics::Injector Append"
       )
     end
 
