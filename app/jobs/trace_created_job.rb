@@ -8,7 +8,6 @@ class TraceCreatedJob < ApplicationJob
     definition = TraceToMetric.for_span_name(trace.span_name)
     return unless definition
 
-    # TODO: inject trace into the relative metric table
     TraceToMetrics::Injector.call(trace, definition)
   end
 end

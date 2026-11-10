@@ -24,7 +24,7 @@ module TraceToMetrics
       connection.create_table(@table_name) do |t|
         t.timestamptz :bucket, null: false
         dimension_columns.each do |column|
-          t.string column
+          t.string column, null: false, default: ""
         end
         t.bigint :value, null: false, default: 0
         t.timestamps
@@ -48,7 +48,7 @@ module TraceToMetrics
         sanitized.each do |column|
           next if existing.include?(column)
 
-          connection.add_column(@table_name, column, :string)
+          connection.add_column(@table_name, column, :string, null: false, default: "")
         end
 
         rebuild_unique_index!

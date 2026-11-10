@@ -25,8 +25,15 @@ RSpec.describe TraceToMetrics::TableManager, :no_transaction do
       conn = ActiveRecord::Base.connection
       expect(conn.table_exists?("http_counter")).to eq(true)
 
-      columns = conn.columns("http_counter").map(&:name)
-      expect(columns).to include("bucket", "http_method", "http_route", "value", "created_at", "updated_at")
+      columns = conn.columns("http_counter")
+      expect(columns.map(&:name)).to include("bucket", "http_method", "http_route", "value", "created_at", "updated_at")
+
+      method_col = columns.find { |c| c.name == "http_method" }
+      route_col = columns.find { |c| c.name == "http_route" }
+      expect(method_col.null).to eq(false)
+      expect(method_col.default).to eq("")
+      expect(route_col.null).to eq(false)
+      expect(route_col.default).to eq("")
 
       index = conn.indexes("http_counter").find { |i| i.name == "index_http_counter_on_bucket_dimensions" }
       expect(index).to be_present
@@ -62,8 +69,12 @@ RSpec.describe TraceToMetrics::TableManager, :no_transaction do
       described_class.add_dimensions!(definition, [ "http.route" ])
 
       conn = ActiveRecord::Base.connection
-      columns = conn.columns("http_counter").map(&:name)
-      expect(columns).to include("http_route")
+      columns = conn.columns("http_counter")
+      expect(columns.map(&:name)).to include("http_route")
+
+      route_col = columns.find { |c| c.name == "http_route" }
+      expect(route_col.null).to eq(false)
+      expect(route_col.default).to eq("")
 
       index = conn.indexes("http_counter").find { |i| i.name == "index_http_counter_on_bucket_dimensions" }
       expect(index.columns).to eq(%w[bucket http_method http_route])
