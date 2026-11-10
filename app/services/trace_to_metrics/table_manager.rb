@@ -1,4 +1,4 @@
-module SpanToMetrics
+module TraceToMetrics
   class TableManager
     class Error < StandardError; end
 
@@ -41,7 +41,7 @@ module SpanToMetrics
     def add_dimensions!(new_dimensions)
       raise Error, "table does not exist: #{@table_name}" unless connection.table_exists?(@table_name)
 
-      sanitized = Array(new_dimensions).map { |d| SpanToMetric.sanitize_dimension(d) }
+      sanitized = Array(new_dimensions).map { |d| TraceToMetric.sanitize_dimension(d) }
       existing = connection.columns(@table_name).map(&:name)
 
       connection.transaction do
@@ -62,7 +62,7 @@ module SpanToMetrics
     end
 
     def reserved?
-      SpanToMetric::RESERVED_TABLE_NAMES.include?(@table_name)
+      TraceToMetric::RESERVED_TABLE_NAMES.include?(@table_name)
     end
 
     def unique_index_name

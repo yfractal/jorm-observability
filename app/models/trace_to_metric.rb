@@ -1,9 +1,9 @@
-class SpanToMetric < ApplicationRecord
+class TraceToMetric < ApplicationRecord
   METRIC_TYPES = %w[counter].freeze
   NAME_FORMAT = /\A[a-z][a-z0-9_]*\z/
   RESERVED_TABLE_NAMES = %w[
-    spans
-    span_to_metrics
+    traces
+    trace_to_metrics
     schema_migrations
     ar_internal_metadata
     solid_queue_jobs
@@ -38,7 +38,7 @@ class SpanToMetric < ApplicationRecord
   end
 
   def self.slugify_span_name(span_name)
-    span_name.to_s.downcase.gsub(/[^a-z0-9_]+/, "_").gsub(/\A_+|_+\z/, "").presence || "span"
+    span_name.to_s.downcase.gsub(/[^a-z0-9_]+/, "_").gsub(/\A_+|_+\z/, "").presence || "trace"
   end
 
   private
@@ -87,7 +87,7 @@ class SpanToMetric < ApplicationRecord
   end
 
   def create_metric_table!
-    SpanToMetrics::TableManager.create!(self)
+    TraceToMetrics::TableManager.create!(self)
   end
 
   def evolve_metric_table!
@@ -96,7 +96,7 @@ class SpanToMetric < ApplicationRecord
     added = current - previous
     return if added.empty?
 
-    SpanToMetrics::TableManager.add_dimensions!(self, added)
+    TraceToMetrics::TableManager.add_dimensions!(self, added)
     update_column(:version, version + 1)
   end
 end

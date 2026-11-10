@@ -1,8 +1,8 @@
 require "rails_helper"
 
-RSpec.describe SpanToMetrics::TableManager, :no_transaction do
+RSpec.describe TraceToMetrics::TableManager, :no_transaction do
   def build_definition(name: "http_counter", dimensions: [ "http.method" ])
-    SpanToMetric.new(
+    TraceToMetric.new(
       name: name,
       span_name: name.delete_suffix("_counter"),
       metric_type: "counter",
@@ -40,16 +40,16 @@ RSpec.describe SpanToMetrics::TableManager, :no_transaction do
 
       expect {
         described_class.create!(definition)
-      }.to raise_error(SpanToMetrics::TableManager::Error, /already exists/)
+      }.to raise_error(TraceToMetrics::TableManager::Error, /already exists/)
     end
 
     it "raises for reserved table names" do
-      definition = build_definition(name: "spans", dimensions: [])
-      definition.define_singleton_method(:name) { "spans" }
+      definition = build_definition(name: "traces", dimensions: [])
+      definition.define_singleton_method(:name) { "traces" }
 
       expect {
         described_class.create!(definition)
-      }.to raise_error(SpanToMetrics::TableManager::Error, /reserved/)
+      }.to raise_error(TraceToMetrics::TableManager::Error, /reserved/)
     end
   end
 

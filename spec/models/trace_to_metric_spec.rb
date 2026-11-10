@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe SpanToMetric, type: :model do
+RSpec.describe TraceToMetric, type: :model do
   describe "validations and naming" do
     it "derives name from span_name and metric_type" do
       definition = described_class.new(
@@ -26,13 +26,13 @@ RSpec.describe SpanToMetric, type: :model do
 
     it "rejects reserved table names" do
       definition = described_class.new(
-        name: "spans",
-        span_name: "spans",
+        name: "traces",
+        span_name: "traces",
         metric_type: "counter"
       )
 
-      # name would derive to spans_counter; force reserved
-      definition.name = "spans"
+      # name would derive to traces_counter; force reserved
+      definition.name = "traces"
       expect(definition).not_to be_valid
       expect(definition.errors[:name]).to include("is reserved")
     end

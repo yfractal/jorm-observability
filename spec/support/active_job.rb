@@ -8,11 +8,11 @@ RSpec.configure do |config|
     clear_enqueued_jobs
     clear_performed_jobs
 
-    SpanToMetric.find_each do |definition|
+    TraceToMetric.find_each do |definition|
       conn = ActiveRecord::Base.connection
       conn.drop_table(definition.name, if_exists: true)
     end
-    SpanToMetric.delete_all
-    Span.delete_all
+    TraceToMetric.delete_all
+    Trace.delete_all
   end
 end

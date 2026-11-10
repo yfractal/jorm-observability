@@ -14,7 +14,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_09_231610) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
-  create_table "span_to_metrics", force: :cascade do |t|
+  create_table "trace_to_metrics", force: :cascade do |t|
     t.string "name", null: false
     t.string "span_name", null: false
     t.string "metric_type", default: "counter", null: false
@@ -22,11 +22,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_09_231610) do
     t.integer "version", default: 1, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["name"], name: "index_span_to_metrics_on_name", unique: true
-    t.index ["span_name"], name: "index_span_to_metrics_on_span_name"
+    t.index ["name"], name: "index_trace_to_metrics_on_name", unique: true
+    t.index ["span_name"], name: "index_trace_to_metrics_on_span_name"
   end
 
-  create_table "spans", force: :cascade do |t|
+  create_table "traces", force: :cascade do |t|
     t.timestamptz "timestamp", null: false
     t.timestamptz "timestamp_end"
     t.bigint "duration_nano"
@@ -47,10 +47,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_09_231610) do
     t.jsonb "span_links", default: [], null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["resource_attributes"], name: "index_spans_on_resource_attributes", using: :gin
-    t.index ["span_attributes"], name: "index_spans_on_span_attributes", using: :gin
-    t.index ["span_name"], name: "index_spans_on_span_name"
-    t.index ["timestamp"], name: "index_spans_on_timestamp"
-    t.index ["trace_id"], name: "index_spans_on_trace_id"
+    t.index ["resource_attributes"], name: "index_traces_on_resource_attributes", using: :gin
+    t.index ["span_attributes"], name: "index_traces_on_span_attributes", using: :gin
+    t.index ["span_name"], name: "index_traces_on_span_name"
+    t.index ["timestamp"], name: "index_traces_on_timestamp"
+    t.index ["trace_id"], name: "index_traces_on_trace_id"
   end
 end

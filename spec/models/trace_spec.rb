@@ -1,7 +1,7 @@
 require "rails_helper"
 
-RSpec.describe Span, type: :model do
-  it "enqueues SpanCreatedJob after create commit", :no_transaction do
+RSpec.describe Trace, type: :model do
+  it "enqueues TraceCreatedJob after create commit", :no_transaction do
     expect {
       described_class.create!(
         timestamp: Time.current,
@@ -9,6 +9,6 @@ RSpec.describe Span, type: :model do
         trace_id: "t1",
         span_id: "s1"
       )
-    }.to have_enqueued_job(SpanCreatedJob)
+    }.to have_enqueued_job(TraceCreatedJob)
   end
 end

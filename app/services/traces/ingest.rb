@@ -1,8 +1,8 @@
 require "base64"
 
-module Spans
+module Traces
   class Ingest
-    Result = Data.define(:spans, :count)
+    Result = Data.define(:traces, :count)
 
     def self.call(payload)
       new(payload).call
@@ -25,7 +25,7 @@ module Spans
           scope = scope_span[:scope]&.with_indifferent_access || {}
 
           Array(scope_span[:spans]).each do |raw_span|
-            created << create_span!(
+            created << create_trace!(
               raw_span.with_indifferent_access,
               service_name: service_name,
               resource_attributes: resource_attributes,
@@ -36,12 +36,12 @@ module Spans
         end
       end
 
-      Result.new(spans: created, count: created.size)
+      Result.new(traces: created, count: created.size)
     end
 
     private
 
-    def create_span!(raw, service_name:, resource_attributes:, scope_name:, scope_version:)
+    def create_trace!(raw, service_name:, resource_attributes:, scope_name:, scope_version:)
       start_ns = parse_nano(raw[:startTimeUnixNano])
       end_ns = parse_nano(raw[:endTimeUnixNano])
       duration = if start_ns && end_ns
@@ -50,7 +50,7 @@ module Spans
         parse_nano(raw[:durationNano] || raw[:duration_nano])
       end
 
-      Span.create!(
+      Trace.create!(
         timestamp: nano_to_time(start_ns) || Time.current,
         timestamp_end: nano_to_time(end_ns),
         duration_nano: duration,

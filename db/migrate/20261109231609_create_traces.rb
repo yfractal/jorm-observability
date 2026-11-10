@@ -1,6 +1,6 @@
-class CreateSpans < ActiveRecord::Migration[8.1]
+class CreateTraces < ActiveRecord::Migration[8.1]
   def change
-    create_table :spans do |t|
+    create_table :traces do |t|
       t.timestamptz :timestamp, null: false
       t.timestamptz :timestamp_end
       t.bigint :duration_nano
@@ -23,10 +23,10 @@ class CreateSpans < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :spans, :trace_id
-    add_index :spans, :span_name
-    add_index :spans, :timestamp
-    add_index :spans, :span_attributes, using: :gin
-    add_index :spans, :resource_attributes, using: :gin
+    add_index :traces, :trace_id
+    add_index :traces, :span_name
+    add_index :traces, :timestamp
+    add_index :traces, :span_attributes, using: :gin
+    add_index :traces, :resource_attributes, using: :gin
   end
 end
