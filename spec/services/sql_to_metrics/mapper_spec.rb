@@ -88,23 +88,108 @@ RSpec.describe SqlToMetrics::Mapper do
       expect(result[:filters]).to eq([ { column: "parent_span_id", op: "IS NULL" } ])
     end
 
-    it "treats non-time GROUP BY columns as dimensions" do
-      sql = <<~SQL
-        SELECT
-            date_bin('1 minute', timestamp) AS time,
-            service_name,
-            COUNT(*) AS c
-        FROM otel_traces
-        GROUP BY service_name, time
-      SQL
+    describe "dimensions" do
+      it "treats non-time GROUP BY columns as dimensions" do
+        sql = <<~SQL
+          SELECT
+              date_bin('1 minute', timestamp) AS time,
+              service_name,
+              COUNT(*) AS c
+          FROM otel_traces
+          GROUP BY service_name, time
+        SQL
 
-      result = described_class.call(sql)
+        result = described_class.call(sql)
 
-      expect(result[:metric_type]).to eq("counter")
-      expect(result[:dimensions]).to eq([ "service_name" ])
-      expect(result[:res_targets]).to include(
-        hash_including(alias: "service_name", kind: :other)
-      )
+        expect(result[:metric_type]).to eq("counter")
+        expect(result[:dimensions]).to eq([ "service_name" ])
+        expect(result[:res_targets]).to include(
+          hash_including(alias: "service_name", kind: :other)
+        )
+      end
+
+      it "keeps multiple non-time GROUP BY columns in order" do
+        sql = <<~SQL
+          SELECT
+              date_bin('1 minute', timestamp) AS time,
+              service_name,
+              span_kind,
+              COUNT(*) AS c
+          FROM otel_traces
+          GROUP BY service_name, span_kind, time
+        SQL
+
+        result = described_class.call(sql)
+
+        expect(result[:dimensions]).to eq([ "service_name", "span_kind" ])
+        expect(result[:time_bucket][:alias]).to eq("time")
+      end
+
+      it "returns dimensions without a time bucket when grouping only by columns" do
+        sql = <<~SQL
+          SELECT service_name, COUNT(*) AS c
+          FROM otel_traces
+          GROUP BY service_name
+        SQL
+
+        result = described_class.call(sql)
+
+        expect(result[:dimensions]).to eq([ "service_name" ])
+        expect(result[:time_bucket]).to be_nil
+      end
+
+      it "excludes an inline date_bin GROUP BY expression from dimensions" do
+        sql = <<~SQL
+          SELECT
+              date_bin('1 minute', timestamp),
+              COUNT(*) AS c
+          FROM otel_traces
+          GROUP BY date_bin('1 minute', timestamp)
+        SQL
+
+        result = described_class.call(sql)
+
+        expect(result[:dimensions]).to eq([])
+        expect(result[:time_bucket]).to eq(
+          interval: "1 minute",
+          column: "timestamp",
+          alias: nil
+        )
+      end
+
+      it "returns no dimensions when grouping only by the time alias" do
+        sql = <<~SQL
+          SELECT
+              date_bin('1 minute', timestamp) AS time,
+              COUNT(*) AS c
+          FROM otel_traces
+          GROUP BY time
+        SQL
+
+        result = described_class.call(sql)
+
+        expect(result[:dimensions]).to eq([])
+      end
+
+      it "uses the bare column name for qualified GROUP BY refs" do
+        sql = <<~SQL
+          SELECT t.service_name, COUNT(*) AS c
+          FROM otel_traces t
+          GROUP BY t.service_name
+        SQL
+
+        result = described_class.call(sql)
+
+        expect(result[:dimensions]).to eq([ "service_name" ])
+      end
+
+      it "returns empty dimensions when there is no GROUP BY" do
+        sql = "SELECT COUNT(*) FROM otel_traces"
+
+        result = described_class.call(sql)
+
+        expect(result[:dimensions]).to eq([])
+      end
     end
 
     it "returns nil metric_type for unsupported aggs like AVG" do

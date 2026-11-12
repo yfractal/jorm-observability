@@ -209,13 +209,7 @@ module SqlToMetrics
 
     def deparse_expr(node)
       return nil if node.nil?
-
-      val_node =
-        if node.is_a?(PgQuery::Node)
-          node
-        else
-          PgQuery::Node.new
-        end
+      return nil unless node.is_a?(PgQuery::Node)
 
       # Wrap a single expression as SELECT <expr> so pg_query can deparse it.
       select = PgQuery::SelectStmt.new(
@@ -224,7 +218,7 @@ module SqlToMetrics
             res_target: PgQuery::ResTarget.new(
               name: "",
               indirection: [],
-              val: val_node,
+              val: node,
               location: -1
             )
           )
