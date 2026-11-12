@@ -1,0 +1,102 @@
+module SqlToMetrics
+  class TableSpec
+    def self.call(sql)
+      new(sql).call
+    end
+
+    def initialize(sql)
+      @sql = sql
+    end
+
+    def call
+      mapped = Mapper.call(@sql)
+      validate!(mapped)
+
+      dimensions = Array(mapped[:dimensions])
+      dimension_columns = dimensions.map { |d| TraceToMetric.sanitize_dimension(d) }
+      distinct_column = extract_distinct_column(mapped[:res_targets])
+      time_bucket = mapped[:time_bucket]
+      filters = Array(mapped[:filters])
+      name = derive_name(
+        source_table: mapped[:source_table],
+        bucket_interval: time_bucket&.dig(:interval),
+        filters: filters,
+        distinct_column: distinct_column
+      )
+      validate_name!(name)
+
+      {
+        name: name,
+        metric_type: "counter",
+        source_table: mapped[:source_table],
+        bucket_interval: time_bucket&.dig(:interval),
+        bucket_column: time_bucket&.dig(:column),
+        dimensions: dimensions,
+        distinct_column: distinct_column,
+        filters: filters,
+        columns: build_columns(dimension_columns),
+        primary_key: dimension_columns
+      }
+    end
+
+    private
+
+    def validate!(mapped)
+      raise UnsupportedError, "source table is required" if mapped[:source_table].blank?
+      raise UnsupportedError, "only counter metrics are supported" unless mapped[:metric_type] == "counter"
+
+      counter_aggs = Array(mapped[:res_targets]).select { |t| t[:kind] == :agg && t[:func] == "count" }
+      raise UnsupportedError, "exactly one counter aggregate is required" unless counter_aggs.size == 1
+    end
+
+    def extract_distinct_column(res_targets)
+      agg = Array(res_targets).find { |t| t[:kind] == :agg && t[:func] == "count" }
+      return nil unless agg&.dig(:distinct)
+
+      args = Array(agg[:args])
+      return nil if args.empty? || args == [ "*" ]
+
+      args.first
+    end
+
+    def derive_name(source_table:, bucket_interval:, filters:, distinct_column:)
+      parts = [ source_table ]
+      parts << TraceToMetric.slugify_span_name(bucket_interval) if bucket_interval.present?
+      parts.concat(filters.map { |f| filter_slug(f) })
+      parts << "distinct_#{TraceToMetric.sanitize_dimension(distinct_column)}" if distinct_column.present?
+      parts << "counter"
+      TraceToMetric.slugify_span_name(parts.join("_"))
+    end
+
+    def filter_slug(filter)
+      column = TraceToMetric.sanitize_dimension(filter[:column])
+      case filter[:op]
+      when "IS NULL"
+        "#{column}_is_null"
+      when "IS NOT NULL"
+        "#{column}_is_not_null"
+      when "="
+        "#{column}_#{TraceToMetric.sanitize_dimension(filter[:value])}"
+      else
+        column
+      end
+    end
+
+    def build_columns(dimension_columns)
+      [
+        { name: "bucket", type: "TIMESTAMP", time_index: true },
+        *dimension_columns.map { |name| { name: name, type: "STRING" } },
+        { name: "value", type: "BIGINT" }
+      ]
+    end
+
+    def validate_name!(name)
+      unless name.match?(TraceToMetric::NAME_FORMAT)
+        raise UnsupportedError, "derived metric name is invalid: #{name}"
+      end
+      if TraceToMetric::RESERVED_TABLE_NAMES.include?(name)
+        raise UnsupportedError, "derived metric name is reserved: #{name}"
+      end
+    end
+  end
+end

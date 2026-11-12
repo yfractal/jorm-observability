@@ -17,6 +17,7 @@ RSpec.describe SqlToMetrics::Mapper do
 
       expect(result[:metric_type]).to eq("counter")
       expect(result[:dimensions]).to eq([])
+      expect(result[:source_table]).to eq("otel_traces")
       expect(result[:time_bucket]).to eq(
         interval: "1 minute",
         column: "timestamp",

@@ -22,7 +22,8 @@ module SqlToMetrics
         dimensions: extract_dimensions(select, time_bucket),
         time_bucket: time_bucket,
         res_targets: res_targets,
-        filters: extract_filters(select.where_clause)
+        filters: extract_filters(select.where_clause),
+        source_table: extract_source_table(select)
       }
     end
 
@@ -76,6 +77,13 @@ module SqlToMetrics
         column: target[:column],
         alias: target[:alias]
       }
+    end
+
+    def extract_source_table(select)
+      from = select.from_clause.first
+      return nil unless from&.range_var
+
+      from.range_var.relname.presence
     end
 
     def extract_dimensions(select, time_bucket)
