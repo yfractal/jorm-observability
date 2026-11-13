@@ -10,12 +10,15 @@ RSpec.describe "OTLP traces ingest", type: :request do
 
       expect {
         post "/v1/traces", params: payload, as: :json
-      }.to change(Trace, :count).by(1)
+      }.to change(OpentelemetryTrace, :count).by(1)
 
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body).to eq("accepted" => 1)
 
-      trace = Trace.last
+      trace = OpentelemetryTrace.find_by!(
+        trace_id: "5b8aa5a2d2c872e8321cf37308d69df2",
+        span_id: "051581bf3cb55c13"
+      )
       expect(trace.span_name).to eq("http")
       expect(trace.service_name).to eq("lobsters")
       expect(trace.span_kind).to eq("SERVER")
@@ -28,12 +31,12 @@ RSpec.describe "OTLP traces ingest", type: :request do
       expect(trace.resource_attributes).to include("service.name" => "lobsters")
     end
 
-    it "enqueues TraceCreatedJob for each created trace", :no_transaction do
+    it "enqueues OpentelemetryTraceCreatedJob for each created trace", :no_transaction do
       payload = otlp_trace_payload(span_name: "http")
 
       expect {
         post "/v1/traces", params: payload, as: :json
-      }.to have_enqueued_job(TraceCreatedJob)
+      }.to have_enqueued_job(OpentelemetryTraceCreatedJob)
     end
 
     it "accepts an empty resourceSpans list" do

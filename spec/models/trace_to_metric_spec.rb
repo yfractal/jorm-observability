@@ -26,13 +26,13 @@ RSpec.describe TraceToMetric, type: :model do
 
     it "rejects reserved table names" do
       definition = described_class.new(
-        name: "traces",
-        span_name: "traces",
+        name: "opentelemetry_traces",
+        span_name: "opentelemetry_traces",
         metric_type: "counter"
       )
 
-      # name would derive to traces_counter; force reserved
-      definition.name = "traces"
+      # name would derive to opentelemetry_traces_counter; force reserved
+      definition.name = "opentelemetry_traces"
       expect(definition).not_to be_valid
       expect(definition.errors[:name]).to include("is reserved")
     end

@@ -10,7 +10,7 @@ RSpec.describe TraceToMetrics::Injector, :no_transaction do
   end
 
   def create_trace!(attrs = {})
-    Trace.create!(
+    OpentelemetryTrace.create!(
       {
         timestamp: Time.utc(2026, 11, 10, 8, 22, 15, 123_456),
         span_name: "http",

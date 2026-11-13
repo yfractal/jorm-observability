@@ -6,7 +6,7 @@ class TraceToMetric < ApplicationRecord
   NAME_FORMAT = /\A[a-z][a-z0-9_]*\z/
   STABLE_GREPTIME_TS = Time.utc(1970, 1, 1)
   RESERVED_TABLE_NAMES = %w[
-    traces
+    opentelemetry_traces
     trace_to_metrics
     schema_migrations
     ar_internal_metadata

@@ -37,8 +37,8 @@ RSpec.describe TraceToMetrics::TableManager, :no_transaction do
     end
 
     it "raises for reserved table names" do
-      definition = build_definition(name: "traces", dimensions: [])
-      definition.define_singleton_method(:name) { "traces" }
+      definition = build_definition(name: "opentelemetry_traces", dimensions: [])
+      definition.define_singleton_method(:name) { "opentelemetry_traces" }
 
       expect {
         described_class.create!(definition)

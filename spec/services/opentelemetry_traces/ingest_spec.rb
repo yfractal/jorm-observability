@@ -1,7 +1,7 @@
 require "rails_helper"
 
-RSpec.describe Traces::Ingest do
-  it "parses nested OTLP resource/scope/spans into Trace rows" do
+RSpec.describe OpentelemetryTraces::Ingest do
+  it "parses nested OTLP resource/scope/spans into OpentelemetryTrace rows" do
     payload = otlp_trace_payload(
       span_name: "select",
       attributes: { "db.system" => "postgresql" }
@@ -10,7 +10,7 @@ RSpec.describe Traces::Ingest do
     result = nil
     expect {
       result = described_class.call(payload)
-    }.to change(Trace, :count).by(1)
+    }.to change(OpentelemetryTrace, :count).by(1)
 
     expect(result.count).to eq(1)
     trace = result.traces.first

@@ -7,7 +7,7 @@ RSpec.describe SqlToMetrics::Mapper do
         SELECT
             date_bin('1 minute', timestamp) AS time,
             COUNT(*) AS request_count
-        FROM otel_traces
+        FROM opentelemetry_traces
         WHERE parent_span_id IS NULL
         GROUP BY time
         ORDER BY time;
@@ -17,7 +17,7 @@ RSpec.describe SqlToMetrics::Mapper do
 
       expect(result[:metric_type]).to eq("counter")
       expect(result[:dimensions]).to eq([])
-      expect(result[:source_table]).to eq("otel_traces")
+      expect(result[:source_table]).to eq("opentelemetry_traces")
       expect(result[:time_bucket]).to eq(
         interval: "1 minute",
         column: "timestamp",
@@ -35,7 +35,7 @@ RSpec.describe SqlToMetrics::Mapper do
         SELECT
             date_bin('1 minute', timestamp) AS time,
             COUNT(DISTINCT trace_id) AS trace_count
-        FROM otel_traces
+        FROM opentelemetry_traces
         GROUP BY time
         ORDER BY time;
       SQL
@@ -60,7 +60,7 @@ RSpec.describe SqlToMetrics::Mapper do
         SELECT
             date_bin('1 day', timestamp) AS time,
             COUNT(*) AS span_count
-        FROM otel_traces
+        FROM opentelemetry_traces
         GROUP BY time
         ORDER BY time;
       SQL
@@ -76,7 +76,7 @@ RSpec.describe SqlToMetrics::Mapper do
     end
 
     it "maps a bare COUNT(*) with no time bucket" do
-      sql = "SELECT COUNT(*) FROM otel_traces WHERE parent_span_id IS NULL;"
+      sql = "SELECT COUNT(*) FROM opentelemetry_traces WHERE parent_span_id IS NULL;"
 
       result = described_class.call(sql)
 
@@ -96,7 +96,7 @@ RSpec.describe SqlToMetrics::Mapper do
               date_bin('1 minute', timestamp) AS time,
               service_name,
               COUNT(*) AS c
-          FROM otel_traces
+          FROM opentelemetry_traces
           GROUP BY service_name, time
         SQL
 
@@ -116,7 +116,7 @@ RSpec.describe SqlToMetrics::Mapper do
               service_name,
               span_kind,
               COUNT(*) AS c
-          FROM otel_traces
+          FROM opentelemetry_traces
           GROUP BY service_name, span_kind, time
         SQL
 
@@ -129,7 +129,7 @@ RSpec.describe SqlToMetrics::Mapper do
       it "returns dimensions without a time bucket when grouping only by columns" do
         sql = <<~SQL
           SELECT service_name, COUNT(*) AS c
-          FROM otel_traces
+          FROM opentelemetry_traces
           GROUP BY service_name
         SQL
 
@@ -144,7 +144,7 @@ RSpec.describe SqlToMetrics::Mapper do
           SELECT
               date_bin('1 minute', timestamp),
               COUNT(*) AS c
-          FROM otel_traces
+          FROM opentelemetry_traces
           GROUP BY date_bin('1 minute', timestamp)
         SQL
 
@@ -163,7 +163,7 @@ RSpec.describe SqlToMetrics::Mapper do
           SELECT
               date_bin('1 minute', timestamp) AS time,
               COUNT(*) AS c
-          FROM otel_traces
+          FROM opentelemetry_traces
           GROUP BY time
         SQL
 
@@ -175,7 +175,7 @@ RSpec.describe SqlToMetrics::Mapper do
       it "uses the bare column name for qualified GROUP BY refs" do
         sql = <<~SQL
           SELECT t.service_name, COUNT(*) AS c
-          FROM otel_traces t
+          FROM opentelemetry_traces t
           GROUP BY t.service_name
         SQL
 
@@ -185,7 +185,7 @@ RSpec.describe SqlToMetrics::Mapper do
       end
 
       it "returns empty dimensions when there is no GROUP BY" do
-        sql = "SELECT COUNT(*) FROM otel_traces"
+        sql = "SELECT COUNT(*) FROM opentelemetry_traces"
 
         result = described_class.call(sql)
 
@@ -194,7 +194,7 @@ RSpec.describe SqlToMetrics::Mapper do
     end
 
     it "returns nil metric_type for unsupported aggs like AVG" do
-      sql = "SELECT AVG(duration) AS avg_d FROM otel_traces"
+      sql = "SELECT AVG(duration) AS avg_d FROM opentelemetry_traces"
 
       result = described_class.call(sql)
 
@@ -206,7 +206,7 @@ RSpec.describe SqlToMetrics::Mapper do
 
     it "extracts simple equality and IS NOT NULL filters" do
       sql = <<~SQL
-        SELECT COUNT(*) FROM otel_traces
+        SELECT COUNT(*) FROM opentelemetry_traces
         WHERE service_name = 'lobsters' AND parent_span_id IS NOT NULL
       SQL
 

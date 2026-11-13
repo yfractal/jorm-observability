@@ -2,12 +2,41 @@ require "rails_helper"
 
 RSpec.describe SqlToMetrics::TableSpec do
   describe ".call" do
+    it "captures COUNT(*)" do
+      sql = <<~SQL
+        SELECT
+            date_bin('1 minute', timestamp) AS time,
+            COUNT(*) AS count
+        FROM opentelemetry_traces
+        GROUP BY time
+        ORDER BY time;
+      SQL
+
+      result = described_class.call(sql)
+      expect(result[:dimensions]).to eq []
+    end
+
+    it 'per service name' do
+      sql = <<~SQL
+        SELECT
+            date_bin('1 minute', timestamp) AS time,
+            COUNT(service_name) AS count
+        FROM opentelemetry_traces
+        GROUP BY time
+        ORDER BY time;
+      SQL
+
+      result = described_class.call(sql)
+      expect(result[:dimensions]).to eq []
+
+    end
+
     it "builds a counter table spec for request_count with minute date_bin and parent_span_id IS NULL" do
       sql = <<~SQL
         SELECT
             date_bin('1 minute', timestamp) AS time,
             COUNT(*) AS request_count
-        FROM otel_traces
+        FROM opentelemetry_traces
         WHERE parent_span_id IS NULL
         GROUP BY time
         ORDER BY time;
@@ -15,9 +44,9 @@ RSpec.describe SqlToMetrics::TableSpec do
 
       result = described_class.call(sql)
 
-      expect(result[:name]).to eq("otel_traces_1_minute_parent_span_id_is_null_counter")
+      expect(result[:name]).to eq("opentelemetry_traces_1_minute_parent_span_id_is_null_counter")
       expect(result[:metric_type]).to eq("counter")
-      expect(result[:source_table]).to eq("otel_traces")
+      expect(result[:source_table]).to eq("opentelemetry_traces")
       expect(result[:bucket_interval]).to eq("1 minute")
       expect(result[:bucket_column]).to eq("timestamp")
       expect(result[:dimensions]).to eq([])
@@ -35,7 +64,7 @@ RSpec.describe SqlToMetrics::TableSpec do
         SELECT
             date_bin('1 minute', timestamp) AS time,
             COUNT(DISTINCT trace_id) AS trace_count
-        FROM otel_traces
+        FROM opentelemetry_traces
         GROUP BY time
         ORDER BY time;
       SQL
@@ -43,7 +72,7 @@ RSpec.describe SqlToMetrics::TableSpec do
       result = described_class.call(sql)
 
       expect(result[:distinct_column]).to eq("trace_id")
-      expect(result[:name]).to eq("otel_traces_1_minute_distinct_trace_id_counter")
+      expect(result[:name]).to eq("opentelemetry_traces_1_minute_distinct_trace_id_counter")
       expect(result[:bucket_interval]).to eq("1 minute")
       expect(result[:filters]).to eq([])
       expect(result[:primary_key]).to eq([])
@@ -54,7 +83,7 @@ RSpec.describe SqlToMetrics::TableSpec do
         SELECT
             date_bin('1 day', timestamp) AS time,
             COUNT(*) AS span_count
-        FROM otel_traces
+        FROM opentelemetry_traces
         GROUP BY time
         ORDER BY time;
       SQL
@@ -62,18 +91,18 @@ RSpec.describe SqlToMetrics::TableSpec do
       result = described_class.call(sql)
 
       expect(result[:bucket_interval]).to eq("1 day")
-      expect(result[:name]).to eq("otel_traces_1_day_counter")
-      expect(result[:name]).not_to eq("otel_traces_1_minute_counter")
+      expect(result[:name]).to eq("opentelemetry_traces_1_day_counter")
+      expect(result[:name]).not_to eq("opentelemetry_traces_1_minute_counter")
     end
 
     it "allows a bare COUNT(*) with no time bucket" do
-      sql = "SELECT COUNT(*) FROM otel_traces WHERE parent_span_id IS NULL;"
+      sql = "SELECT COUNT(*) FROM opentelemetry_traces WHERE parent_span_id IS NULL;"
 
       result = described_class.call(sql)
 
       expect(result[:bucket_interval]).to be_nil
       expect(result[:bucket_column]).to be_nil
-      expect(result[:name]).to eq("otel_traces_parent_span_id_is_null_counter")
+      expect(result[:name]).to eq("opentelemetry_traces_parent_span_id_is_null_counter")
       expect(result[:filters]).to eq([ { column: "parent_span_id", op: "IS NULL" } ])
       expect(result[:columns]).to include(
         { name: "bucket", type: "TIMESTAMP", time_index: true },
@@ -88,7 +117,7 @@ RSpec.describe SqlToMetrics::TableSpec do
               date_bin('1 minute', timestamp) AS time,
               service_name,
               COUNT(*) AS c
-          FROM otel_traces
+          FROM opentelemetry_traces
           GROUP BY service_name, time
         SQL
 
@@ -110,7 +139,7 @@ RSpec.describe SqlToMetrics::TableSpec do
               service_name,
               span_kind,
               COUNT(*) AS c
-          FROM otel_traces
+          FROM opentelemetry_traces
           GROUP BY service_name, span_kind, time
         SQL
 
@@ -126,7 +155,7 @@ RSpec.describe SqlToMetrics::TableSpec do
       it "returns dimensions without a time bucket when grouping only by columns" do
         sql = <<~SQL
           SELECT service_name, COUNT(*) AS c
-          FROM otel_traces
+          FROM opentelemetry_traces
           GROUP BY service_name
         SQL
 
@@ -143,7 +172,7 @@ RSpec.describe SqlToMetrics::TableSpec do
           SELECT
               date_bin('1 minute', timestamp),
               COUNT(*) AS c
-          FROM otel_traces
+          FROM opentelemetry_traces
           GROUP BY date_bin('1 minute', timestamp)
         SQL
 
@@ -160,7 +189,7 @@ RSpec.describe SqlToMetrics::TableSpec do
           SELECT
               date_bin('1 minute', timestamp) AS time,
               COUNT(*) AS c
-          FROM otel_traces
+          FROM opentelemetry_traces
           GROUP BY time
         SQL
 
@@ -173,7 +202,7 @@ RSpec.describe SqlToMetrics::TableSpec do
       it "uses the bare column name for qualified GROUP BY refs" do
         sql = <<~SQL
           SELECT t.service_name, COUNT(*) AS c
-          FROM otel_traces t
+          FROM opentelemetry_traces t
           GROUP BY t.service_name
         SQL
 
@@ -184,19 +213,19 @@ RSpec.describe SqlToMetrics::TableSpec do
       end
 
       it "returns empty dimensions when there is no GROUP BY" do
-        sql = "SELECT COUNT(*) FROM otel_traces"
+        sql = "SELECT COUNT(*) FROM opentelemetry_traces"
 
         result = described_class.call(sql)
 
         expect(result[:dimensions]).to eq([])
         expect(result[:primary_key]).to eq([])
-        expect(result[:name]).to eq("otel_traces_counter")
+        expect(result[:name]).to eq("opentelemetry_traces_counter")
       end
     end
 
     it "includes equality and IS NOT NULL filters in the name" do
       sql = <<~SQL
-        SELECT COUNT(*) FROM otel_traces
+        SELECT COUNT(*) FROM opentelemetry_traces
         WHERE service_name = 'lobsters' AND parent_span_id IS NOT NULL
       SQL
 
@@ -207,12 +236,12 @@ RSpec.describe SqlToMetrics::TableSpec do
         { column: "parent_span_id", op: "IS NOT NULL" }
       )
       expect(result[:name]).to eq(
-        "otel_traces_service_name_lobsters_parent_span_id_is_not_null_counter"
+        "opentelemetry_traces_service_name_lobsters_parent_span_id_is_not_null_counter"
       )
     end
 
     it "raises UnsupportedError for unsupported aggs like AVG" do
-      sql = "SELECT AVG(duration) AS avg_d FROM otel_traces"
+      sql = "SELECT AVG(duration) AS avg_d FROM opentelemetry_traces"
 
       expect {
         described_class.call(sql)
@@ -226,7 +255,7 @@ RSpec.describe SqlToMetrics::TableSpec do
     end
 
     it "raises UnsupportedError for multiple counter aggregates" do
-      sql = "SELECT COUNT(*), COUNT(DISTINCT trace_id) FROM otel_traces"
+      sql = "SELECT COUNT(*), COUNT(DISTINCT trace_id) FROM opentelemetry_traces"
 
       expect {
         described_class.call(sql)
@@ -240,7 +269,7 @@ RSpec.describe SqlToMetrics::TableSpec do
             service_name,
             span_kind,
             COUNT(*) AS c
-        FROM otel_traces
+        FROM opentelemetry_traces
         GROUP BY service_name, span_kind, time
       SQL
 

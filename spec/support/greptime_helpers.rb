@@ -40,7 +40,7 @@ module GreptimeHelpers
     end
 
     begin
-      Greptime::Connection.truncate_table("traces")
+      Greptime::Connection.truncate_table("opentelemetry_traces")
     rescue ActiveRecord::StatementInvalid
       nil
     end

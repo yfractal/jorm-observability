@@ -2,7 +2,7 @@ module Otlp
   class TracesController < ActionController::API
     def create
       payload = parse_payload
-      result = Traces::Ingest.call(payload)
+      result = OpentelemetryTraces::Ingest.call(payload)
 
       render json: { accepted: result.count }, status: :ok
     end

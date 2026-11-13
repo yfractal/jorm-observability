@@ -1,6 +1,6 @@
 require "base64"
 
-module Traces
+module OpentelemetryTraces
   class Ingest
     Result = Data.define(:traces, :count)
 
@@ -50,7 +50,7 @@ module Traces
         parse_nano(raw[:durationNano] || raw[:duration_nano])
       end
 
-      Trace.create!(
+      OpentelemetryTrace.create!(
         timestamp: nano_to_time(start_ns) || Time.current,
         timestamp_end: nano_to_time(end_ns),
         duration_nano: duration,

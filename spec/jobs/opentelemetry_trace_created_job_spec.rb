@@ -1,8 +1,8 @@
 require "rails_helper"
 
-RSpec.describe TraceCreatedJob, type: :job do
+RSpec.describe OpentelemetryTraceCreatedJob, type: :job do
   def create_trace!(name: "http", trace_id: "abc", span_id: "def")
-    Trace.create!(
+    OpentelemetryTrace.create!(
       timestamp: Time.current,
       span_name: name,
       trace_id: trace_id,
@@ -42,14 +42,14 @@ RSpec.describe TraceCreatedJob, type: :job do
     )
     timestamp = Time.utc(2026, 11, 10, 8, 22, 15, 250_000)
 
-    first = Trace.create!(
+    first = OpentelemetryTrace.create!(
       timestamp: timestamp,
       span_name: "http",
       trace_id: "t1",
       span_id: "s1",
       span_attributes: { "http.request.method" => "GET" }
     )
-    second = Trace.create!(
+    second = OpentelemetryTrace.create!(
       timestamp: timestamp,
       span_name: "http",
       trace_id: "t2",
