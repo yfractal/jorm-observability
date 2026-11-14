@@ -138,8 +138,11 @@ RSpec.describe SqlToMetrics::Runner, :no_transaction do
     create_trace!(timestamp: Time.utc(2026, 1, 1, 10, 7, 10), scope_name: "web")
 
     sql = query_sql(from: "2026-01-01 10:00:00", to: "2026-01-01 10:08:00")
-    raw_rows = Greptime::Connection.exec_query(sql).to_a
+    direct = described_class.call(sql, use_metric: false)
     result = described_class.call(sql)
+
+    expect(direct.used_metric).to eq(false)
+    expect(direct.sql).to eq(sql)
 
     expect(result.used_metric).to eq(true)
     expect(result.metric_name).to eq(metric_name)
@@ -157,7 +160,7 @@ RSpec.describe SqlToMetrics::Runner, :no_transaction do
       { from: Time.utc(2026, 1, 1, 10, 5, 0), to: Time.utc(2026, 1, 1, 10, 8, 0) }
     )
 
-    expect(normalize(result.rows)).to eq(normalize(raw_rows))
+    expect(normalize(result.rows)).to eq(normalize(direct.rows))
     expect(normalize(result.rows)).to eq([
       { time: Time.utc(2026, 1, 1, 10, 0, 0), scope_name: "web", count: 2 },
       { time: Time.utc(2026, 1, 1, 10, 1, 0), scope_name: "api", count: 1 },

@@ -42,6 +42,9 @@ result = SqlToMetrics::Runner.call(<<~SQL)
 SQL
 result.rows
 result.used_metric  # true when a compatible metric table was used
+
+# Skip rewrite and run the input SQL as-is
+SqlToMetrics::Runner.call(sql, use_metric: false)
 ```
 
 Metric tables are derived with `SqlToMetrics::TableSpec` (see `script/create_scope_name_minute_metrics.rb`). Coverage is `MIN(bucket)+interval` .. `MAX(bucket)` so the first and last buckets are always read from raw data.
