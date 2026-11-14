@@ -41,11 +41,13 @@ module TraceToMetrics
 
       body = [ *columns, primary_key ].compact.join(", ")
 
-      Greptime::Connection.execute(<<~SQL.squish)
+      sql = <<~SQL.squish
         CREATE TABLE #{quoted_table} (
           #{body}
         ) WITH ('append_mode'='true')
       SQL
+
+      Greptime::Connection.execute(sql)
     end
 
     def add_dimensions!(new_dimensions)
