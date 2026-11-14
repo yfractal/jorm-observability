@@ -8,6 +8,13 @@ Rails.application.routes.draw do
   # OTLP/HTTP JSON traces ingest
   post "/v1/traces", to: "otlp/traces#create"
 
+  # Read-only SQL proxy for Grafana (and other clients) → GreptimeDB
+  namespace :api do
+    namespace :v1 do
+      post "sql", to: "sql#create"
+    end
+  end
+
   # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
   # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker

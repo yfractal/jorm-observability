@@ -1,0 +1,16 @@
+apiVersion: 1
+
+datasources:
+  - name: Jorm SQL
+    uid: jorm-sql
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    isDefault: true
+    editable: false
+    url: http://host.docker.internal:3000
+    jsonData:
+      auth_method: none
+      allowedHosts:
+        - http://host.docker.internal:3000
+      customHealthCheckEnabled: true
+      customHealthCheckUrl: http://host.docker.internal:3000/up

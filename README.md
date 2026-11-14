@@ -20,6 +20,8 @@ bin/rails db:prepare   # also prepares the PostgreSQL queue DB
 bin/rails server
 ```
 
+Grafana (provisioned Traces dashboard) is at [http://localhost:3001](http://localhost:3001). It queries GreptimeDB only through this app — keep `bin/rails server` running on port 3000.
+
 ### Environment
 
 - `GREPTIME_HOST` (default `127.0.0.1`)
@@ -28,6 +30,22 @@ bin/rails server
 - `GREPTIME_USERNAME` / `GREPTIME_PASSWORD` (optional)
 - `DATABASE_URL` (optional full URL for primary, e.g. `postgres://@127.0.0.1:4003/public`)
 - `QUEUE_DATABASE_URL` (production queue)
+
+## Grafana / SQL proxy
+
+`POST /api/v1/sql` accepts a read-only `SELECT` (including `WITH … SELECT`) and runs it via `SqlToMetrics::Runner` against GreptimeDB:
+
+```bash
+curl -s http://127.0.0.1:3000/api/v1/sql \
+  -H 'content-type: application/json' \
+  -d '{"sql":"SELECT service_name, COUNT(*) AS count FROM opentelemetry_traces GROUP BY service_name"}'
+```
+
+Response shape: `{ "data": [ ...rows ], "sql": "...", "used_metric": bool, "metric_name": ... }`.
+
+Non-SELECT statements are rejected (`422`). There is no auth on this endpoint yet — do not expose it publicly without adding authentication.
+
+Compose services: GreptimeDB, Postgres (queue), and Grafana (Infinity datasource → `host.docker.internal:3000`).
 
 ## Metric-backed COUNT queries
 

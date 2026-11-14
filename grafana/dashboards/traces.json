@@ -1,0 +1,327 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "jorm-sql" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 16, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "columns": [
+            { "selector": "time", "text": "time", "type": "timestamp" },
+            { "selector": "service_name", "text": "service_name", "type": "string" },
+            { "selector": "count", "text": "count", "type": "number" }
+          ],
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "jorm-sql" },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\": \"SELECT date_bin('1 minute', timestamp) AS time, service_name, COUNT(*) AS count FROM opentelemetry_traces WHERE timestamp >= '${__from:date:YYYY-MM-DDTHH:mm:ss}' AND timestamp < '${__to:date:YYYY-MM-DDTHH:mm:ss}' AND ('$service_name' = '__all__' OR service_name = '$service_name') GROUP BY service_name, time ORDER BY time, service_name\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Spans over time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "jorm-sql" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineWidth": 1,
+            "scaleDistribution": { "type": "linear" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 0 },
+      "id": 2,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": { "mode": "single", "sort": "none" },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "targets": [
+        {
+          "columns": [
+            { "selector": "service_name", "text": "service_name", "type": "string" },
+            { "selector": "span_status_code", "text": "span_status_code", "type": "string" },
+            { "selector": "count", "text": "count", "type": "number" }
+          ],
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "jorm-sql" },
+          "filters": [],
+          "format": "table",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\": \"SELECT service_name, span_status_code, COUNT(*) AS count FROM opentelemetry_traces WHERE timestamp >= '${__from:date:YYYY-MM-DDTHH:mm:ss}' AND timestamp < '${__to:date:YYYY-MM-DDTHH:mm:ss}' AND ('$service_name' = '__all__' OR service_name = '$service_name') GROUP BY service_name, span_status_code ORDER BY count DESC\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Spans by service / status",
+      "type": "bargauge"
+    },
+    {
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "jorm-sql" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
+      "id": 3,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "last_seen" }]
+      },
+      "targets": [
+        {
+          "columns": [
+            { "selector": "trace_id", "text": "trace_id", "type": "string" },
+            { "selector": "service_name", "text": "service_name", "type": "string" },
+            { "selector": "first_seen", "text": "first_seen", "type": "timestamp" },
+            { "selector": "last_seen", "text": "last_seen", "type": "timestamp" },
+            { "selector": "span_count", "text": "span_count", "type": "number" }
+          ],
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "jorm-sql" },
+          "filters": [],
+          "format": "table",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\": \"SELECT trace_id, service_name, MIN(timestamp) AS first_seen, MAX(timestamp) AS last_seen, COUNT(*) AS span_count FROM opentelemetry_traces WHERE timestamp >= '${__from:date:YYYY-MM-DDTHH:mm:ss}' AND timestamp < '${__to:date:YYYY-MM-DDTHH:mm:ss}' AND ('$service_name' = '__all__' OR service_name = '$service_name') GROUP BY trace_id, service_name ORDER BY last_seen DESC LIMIT 50\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Recent traces",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "jorm-sql" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },
+      "id": 4,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "timestamp" }]
+      },
+      "targets": [
+        {
+          "columns": [
+            { "selector": "timestamp", "text": "timestamp", "type": "timestamp" },
+            { "selector": "trace_id", "text": "trace_id", "type": "string" },
+            { "selector": "span_name", "text": "span_name", "type": "string" },
+            { "selector": "service_name", "text": "service_name", "type": "string" },
+            { "selector": "span_status_code", "text": "span_status_code", "type": "string" },
+            { "selector": "duration_nano", "text": "duration_nano", "type": "number" }
+          ],
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "jorm-sql" },
+          "filters": [],
+          "format": "table",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\": \"SELECT timestamp, trace_id, span_name, service_name, span_status_code, duration_nano FROM opentelemetry_traces WHERE timestamp >= '${__from:date:YYYY-MM-DDTHH:mm:ss}' AND timestamp < '${__to:date:YYYY-MM-DDTHH:mm:ss}' AND ('$service_name' = '__all__' OR service_name = '$service_name') ORDER BY timestamp DESC LIMIT 100\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Recent spans",
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 40,
+  "tags": ["jorm", "traces"],
+  "templating": {
+    "list": [
+      {
+        "allValue": "__all__",
+        "current": { "selected": true, "text": "All", "value": "__all__" },
+        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "jorm-sql" },
+        "definition": "service_name",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Service",
+        "multi": false,
+        "name": "service_name",
+        "options": [],
+        "query": {
+          "columns": [
+            { "selector": "service_name", "text": "service_name", "type": "string" }
+          ],
+          "filters": [],
+          "format": "table",
+          "parser": "backend",
+          "refId": "service_name",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\": \"SELECT DISTINCT service_name FROM opentelemetry_traces WHERE service_name IS NOT NULL ORDER BY service_name\"}",
+            "method": "POST"
+          }
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Traces",
+  "uid": "jorm-traces",
+  "version": 1,
+  "weekStart": ""
+}
