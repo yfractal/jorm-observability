@@ -218,6 +218,113 @@ RSpec.describe SqlToMetrics::Mapper do
       )
     end
 
+    describe "time_range" do
+      it "extracts >= and < bounds on the bucket column" do
+        sql = <<~SQL
+          SELECT
+              date_bin('1 minute', timestamp) AS time,
+              COUNT(*) AS c
+          FROM opentelemetry_traces
+          WHERE timestamp >= '2026-01-01 00:00:00'
+            AND timestamp < '2026-01-02 00:00:00'
+          GROUP BY time
+        SQL
+
+        result = described_class.call(sql)
+
+        expect(result[:filters]).to eq([])
+        expect(result[:time_range]).to eq(
+          from: { value: { kind: :literal, value: "2026-01-01 00:00:00" }, inclusive: true },
+          to: { value: { kind: :literal, value: "2026-01-02 00:00:00" }, inclusive: false }
+        )
+      end
+
+      it "keeps non-time filters while extracting time bounds" do
+        sql = <<~SQL
+          SELECT
+              date_bin('1 minute', timestamp) AS time,
+              COUNT(*) AS c
+          FROM opentelemetry_traces
+          WHERE parent_span_id IS NULL
+            AND timestamp >= '2026-01-01'
+            AND timestamp < '2026-01-02'
+            AND service_name = 'lobsters'
+          GROUP BY time
+        SQL
+
+        result = described_class.call(sql)
+
+        expect(result[:filters]).to contain_exactly(
+          { column: "parent_span_id", op: "IS NULL" },
+          { column: "service_name", op: "=", value: "lobsters" }
+        )
+        expect(result[:time_range][:from][:value][:value]).to eq("2026-01-01")
+        expect(result[:time_range][:to][:value][:value]).to eq("2026-01-02")
+      end
+
+      it "maps BETWEEN to inclusive bounds" do
+        sql = <<~SQL
+          SELECT
+              date_bin('1 minute', timestamp) AS time,
+              COUNT(*) AS c
+          FROM opentelemetry_traces
+          WHERE timestamp BETWEEN '2026-01-01' AND '2026-01-02'
+          GROUP BY time
+        SQL
+
+        result = described_class.call(sql)
+
+        expect(result[:filters]).to eq([])
+        expect(result[:time_range]).to eq(
+          from: { value: { kind: :literal, value: "2026-01-01" }, inclusive: true },
+          to: { value: { kind: :literal, value: "2026-01-02" }, inclusive: true }
+        )
+      end
+
+      it "accepts now() - INTERVAL bounds" do
+        sql = <<~SQL
+          SELECT
+              date_bin('1 minute', timestamp) AS time,
+              COUNT(*) AS c
+          FROM opentelemetry_traces
+          WHERE timestamp >= now() - INTERVAL '1 hour'
+          GROUP BY time
+        SQL
+
+        result = described_class.call(sql)
+
+        expect(result[:time_range][:from]).to eq(
+          value: { kind: :now_minus, interval: "1 hour" },
+          inclusive: true
+        )
+        expect(result[:time_range][:to]).to be_nil
+      end
+
+      it "returns empty time_range when there is no bucket column" do
+        sql = "SELECT COUNT(*) FROM opentelemetry_traces WHERE service_name = 'x'"
+
+        result = described_class.call(sql)
+
+        expect(result[:time_range]).to eq(from: nil, to: nil)
+        expect(result[:filters]).to eq([ { column: "service_name", op: "=", value: "x" } ])
+      end
+
+      it "raises UnsupportedError for complex time bounds" do
+        sql = <<~SQL
+          SELECT
+              date_bin('1 minute', timestamp) AS time,
+              COUNT(*) AS c
+          FROM opentelemetry_traces
+          WHERE timestamp >= date_trunc('day', now())
+          GROUP BY time
+        SQL
+
+        expect {
+          described_class.call(sql)
+        }.to raise_error(SqlToMetrics::UnsupportedError, /unsupported time bound/)
+      end
+    end
+
     it "raises ParseError for invalid SQL" do
       expect {
         described_class.call("SELECT FROM")

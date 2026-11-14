@@ -29,6 +29,23 @@ bin/rails server
 - `DATABASE_URL` (optional full URL for primary, e.g. `postgres://@127.0.0.1:4003/public`)
 - `QUEUE_DATABASE_URL` (production queue)
 
+## Metric-backed COUNT queries
+
+`SqlToMetrics::Runner` rewrites a `COUNT` analytics query into a single GreptimeDB statement that reads a pre-aggregated metric table for the time range it covers and the raw `opentelemetry_traces` table for the remainder (`UNION ALL` + outer `SUM`).
+
+```ruby
+result = SqlToMetrics::Runner.call(<<~SQL)
+  SELECT date_bin('1 minute', timestamp) AS time, scope_name, COUNT(*) AS count
+  FROM opentelemetry_traces
+  WHERE timestamp >= '2026-01-01 00:00:00' AND timestamp < '2026-01-02 00:00:00'
+  GROUP BY scope_name, time
+SQL
+result.rows
+result.used_metric  # true when a compatible metric table was used
+```
+
+Metric tables are derived with `SqlToMetrics::TableSpec` (see `script/create_scope_name_minute_metrics.rb`). Coverage is `MIN(bucket)+interval` .. `MAX(bucket)` so the first and last buckets are always read from raw data.
+
 ## Tests
 
 Start GreptimeDB (and Postgres if exercising queue), then:

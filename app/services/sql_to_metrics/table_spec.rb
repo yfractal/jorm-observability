@@ -34,6 +34,7 @@ module SqlToMetrics
         dimensions: dimensions,
         distinct_column: distinct_column,
         filters: filters,
+        time_range: mapped[:time_range],
         columns: build_columns(dimension_columns),
         primary_key: dimension_columns
       }

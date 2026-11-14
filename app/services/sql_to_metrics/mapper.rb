@@ -13,16 +13,21 @@ module SqlToMetrics
       @sql = sql.to_s
     end
 
+    RANGE_OPS = %w[>= > <= <].freeze
+
     def call
       select = select_stmt!
       res_targets = select.target_list.map { |node| classify_res_target(node.res_target) }
       time_bucket = extract_time_bucket(res_targets)
+      time_column = time_bucket&.dig(:column)
+      filters, time_range = extract_filters_and_time_range(select.where_clause, time_column)
       {
         metric_type: metric_type_for(res_targets),
         dimensions: extract_dimensions(select, time_bucket),
         time_bucket: time_bucket,
+        time_range: time_range,
         res_targets: res_targets,
-        filters: extract_filters(select.where_clause),
+        filters: filters,
         source_table: extract_source_table(select)
       }
     end
@@ -103,9 +108,25 @@ module SqlToMetrics
     end
 
     def extract_filters(where_node)
-      return [] if where_node.nil?
+      extract_filters_and_time_range(where_node, nil).first
+    end
 
-      flatten_bool_and(where_node).filter_map { |node| classify_filter(node) }
+    def extract_filters_and_time_range(where_node, time_column)
+      empty_range = { from: nil, to: nil }
+      return [ [], empty_range ] if where_node.nil?
+
+      time_range = { from: nil, to: nil }
+      filters = []
+
+      flatten_bool_and(where_node).each do |node|
+        if time_column && (bound = classify_time_bound(node, time_column))
+          merge_time_bound!(time_range, bound)
+        elsif (filter = classify_filter(node))
+          filters << filter
+        end
+      end
+
+      [ filters, time_range ]
     end
 
     def metric_type_for(res_targets)
@@ -183,6 +204,90 @@ module SqlToMetrics
 
         { column: column, op: "=", value: value }
       end
+    end
+
+    def classify_time_bound(node, time_column)
+      return nil unless node.a_expr
+
+      expr = node.a_expr
+      op = expr.name.map { |n| n.string&.sval }.compact.join
+      column = column_name_from_node(expr.lexpr)
+      return nil unless column == time_column
+
+      if expr.kind == :AEXPR_BETWEEN || op.casecmp("BETWEEN").zero?
+        items = expr.rexpr&.list&.items
+        raise UnsupportedError, "unsupported BETWEEN bounds on #{time_column}" unless items&.size == 2
+
+        lower = parse_time_value!(items[0], time_column)
+        upper = parse_time_value!(items[1], time_column)
+        return [
+          { edge: :from, value: lower, inclusive: true },
+          { edge: :to, value: upper, inclusive: true }
+        ]
+      end
+
+      return nil unless RANGE_OPS.include?(op)
+
+      value = parse_time_value!(expr.rexpr, time_column)
+      case op
+      when ">=" then { edge: :from, value: value, inclusive: true }
+      when ">"  then { edge: :from, value: value, inclusive: false }
+      when "<=" then { edge: :to, value: value, inclusive: true }
+      when "<"  then { edge: :to, value: value, inclusive: false }
+      end
+    end
+
+    def merge_time_bound!(time_range, bound_or_bounds)
+      bounds = bound_or_bounds.is_a?(Array) ? bound_or_bounds : [ bound_or_bounds ]
+      bounds.each do |bound|
+        edge = bound[:edge]
+        entry = { value: bound[:value], inclusive: bound[:inclusive] }
+        existing = time_range[edge]
+        if existing && existing != entry
+          raise UnsupportedError, "conflicting time range bounds on #{edge}"
+        end
+        time_range[edge] = entry
+      end
+    end
+
+    def parse_time_value!(node, time_column)
+      if (literal = const_string(node) || (const_value(node).is_a?(String) ? const_value(node) : nil))
+        return { kind: :literal, value: literal }
+      end
+
+      if node&.func_call && func_name(node.func_call) == "now" && Array(node.func_call.args).empty?
+        return { kind: :now }
+      end
+
+      if node&.a_expr
+        expr = node.a_expr
+        op = expr.name.map { |n| n.string&.sval }.compact.join
+        if op == "-" && now_call?(expr.lexpr) && (interval = interval_literal(expr.rexpr))
+          return { kind: :now_minus, interval: interval }
+        end
+        if op == "+" && now_call?(expr.lexpr) && (interval = interval_literal(expr.rexpr))
+          return { kind: :now_plus, interval: interval }
+        end
+      end
+
+      raise UnsupportedError, "unsupported time bound on #{time_column}"
+    end
+
+    def now_call?(node)
+      node&.func_call && func_name(node.func_call) == "now" && Array(node.func_call.args).empty?
+    end
+
+    def interval_literal(node)
+      # INTERVAL '1 hour' parses as a TypeCast to pg_catalog.interval
+      cast = node&.type_cast
+      if cast
+        type_names = Array(cast.type_name&.names).filter_map { |n| n.string&.sval }.map(&:downcase)
+        return nil unless type_names.include?("interval")
+
+        return const_string(cast.arg)
+      end
+
+      const_string(node)
     end
 
     def column_name_from_node(node)

@@ -240,6 +240,26 @@ RSpec.describe SqlToMetrics::TableSpec do
       )
     end
 
+    it "excludes time range filters from the derived name" do
+      sql = <<~SQL
+        SELECT
+            date_bin('1 minute', timestamp) AS time,
+            COUNT(*) AS c
+        FROM opentelemetry_traces
+        WHERE parent_span_id IS NULL
+          AND timestamp >= '2026-01-01'
+          AND timestamp < '2026-01-02'
+        GROUP BY time
+      SQL
+
+      result = described_class.call(sql)
+
+      expect(result[:name]).to eq("opentelemetry_traces_1_minute_parent_span_id_is_null_counter")
+      expect(result[:filters]).to eq([ { column: "parent_span_id", op: "IS NULL" } ])
+      expect(result[:time_range][:from][:value][:value]).to eq("2026-01-01")
+      expect(result[:time_range][:to][:value][:value]).to eq("2026-01-02")
+    end
+
     it "raises UnsupportedError for unsupported aggs like AVG" do
       sql = "SELECT AVG(duration) AS avg_d FROM opentelemetry_traces"
 
