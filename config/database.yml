@@ -21,8 +21,8 @@ default_greptime: &default_greptime
   password: <%= ENV.fetch("GREPTIME_PASSWORD", nil) %>
   max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
   greptimedb: true
-  # Greptime is not managed by Active Record migrations.
-  migrations_paths: db/greptime_migrate
+  # Greptime is not managed by Active Record migrations / schema dumps.
+  database_tasks: false
   schema_dump: false
 
 

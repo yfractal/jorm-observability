@@ -40,6 +40,13 @@ module Greptime
       super
     end
 
+    # GreptimeDB does not support SHOW max_identifier_length.
+    def max_identifier_length # :nodoc:
+      return 63 if greptimedb?
+
+      super
+    end
+
     # GreptimeDB does not implement pg_catalog index helpers used by AR.
     def indexes(_table_name) # :nodoc:
       return [] if greptimedb?
