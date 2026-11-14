@@ -10,7 +10,7 @@ This app only materializes **counter** metrics (`TraceToMetric::METRIC_TYPES`, `
 
 ## Counter
 
-### Requests served
+### 1. Requests served
 
 ```sql
 SELECT COUNT(*) AS value
@@ -22,7 +22,7 @@ WHERE timestamp >= from_unixtime(${__from}/1000)
   AND "span_attributes.http.response.status_code" IS NOT NULL
 ```
 
-### Jobs Executed
+### 2. Jobs Executed
 
 ```sql
 SELECT COUNT(*) AS value
@@ -33,7 +33,7 @@ WHERE timestamp >= from_unixtime(${__from}/1000)
   AND scope_name = 'OpenTelemetry::Instrumentation::ActiveJob'
 ```
 
-### Mails Sent
+### 3. Mails Sent
 
 ```sql
 SELECT COUNT(*) AS value
@@ -44,7 +44,7 @@ WHERE timestamp >= from_unixtime(${__from}/1000)
   AND scope_name = 'OpenTelemetry::Instrumentation::ActionMailer'
 ```
 
-### Requests per $per — ok
+### 4. Requests per $per — ok
 
 ```sql
 SELECT date_bin('$per', timestamp) AS time, COUNT(*) AS ok
@@ -59,7 +59,7 @@ GROUP BY time
 ORDER BY time
 ```
 
-### Requests per $per — error
+### 5. Requests per $per — error
 
 ```sql
 SELECT date_bin('$per', timestamp) AS time, COUNT(*) AS error
@@ -74,7 +74,7 @@ GROUP BY time
 ORDER BY time
 ```
 
-### Jobs per $per — succeeded
+### 6. Jobs per $per — succeeded
 
 ```sql
 SELECT date_bin('$per', timestamp) AS time, COUNT(*) AS succeeded
@@ -88,7 +88,7 @@ GROUP BY time
 ORDER BY time
 ```
 
-### Jobs per $per — failed
+### 7. Jobs per $per — failed
 
 ```sql
 SELECT date_bin('$per', timestamp) AS time, COUNT(*) AS failed
@@ -102,7 +102,7 @@ GROUP BY time
 ORDER BY time
 ```
 
-### Mails per $per
+### 8. Mails per $per
 
 ```sql
 SELECT date_bin('$per', timestamp) AS time, COUNT(*) AS mails
