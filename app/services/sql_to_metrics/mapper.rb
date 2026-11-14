@@ -28,6 +28,7 @@ module SqlToMetrics
         time_range: time_range,
         res_targets: res_targets,
         filters: filters,
+        unsupported_predicates: unsupported_predicates?(select.where_clause, time_column),
         source_table: extract_source_table(select)
       }
     end
@@ -119,6 +120,8 @@ module SqlToMetrics
       filters = []
 
       flatten_bool_and(where_node).each do |node|
+        next if skippable_predicate?(node)
+
         if time_column && (bound = classify_time_bound(node, time_column))
           merge_time_bound!(time_range, bound)
         elsif (filter = classify_filter(node))
@@ -127,6 +130,37 @@ module SqlToMetrics
       end
 
       [ filters, time_range ]
+    end
+
+    def unsupported_predicates?(where_node, time_column)
+      return false if where_node.nil?
+
+      flatten_bool_and(where_node).any? do |node|
+        next false if skippable_predicate?(node)
+        next false if time_column && classify_time_bound(node, time_column)
+        next false if classify_filter(node)
+
+        true
+      end
+    end
+
+    # Grafana "All services" expands to ('__all__' = '__all__' OR service_name = '__all__').
+    def skippable_predicate?(node)
+      return false unless node.bool_expr && node.bool_expr.boolop == :OR_EXPR
+
+      Array(node.bool_expr.args).any? { |arg| constant_true_equality?(arg) }
+    end
+
+    def constant_true_equality?(node)
+      return false unless node.a_expr
+
+      expr = node.a_expr
+      op = expr.name.map { |n| n.string&.sval }.compact.join
+      return false unless op == "="
+
+      left = const_string(expr.lexpr) || (const_value(expr.lexpr).is_a?(String) ? const_value(expr.lexpr) : nil)
+      right = const_string(expr.rexpr) || (const_value(expr.rexpr).is_a?(String) ? const_value(expr.rexpr) : nil)
+      !left.nil? && left == right
     end
 
     def metric_type_for(res_targets)

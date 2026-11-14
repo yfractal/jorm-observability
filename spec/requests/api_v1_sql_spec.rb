@@ -54,5 +54,27 @@ RSpec.describe "API v1 SQL", type: :request do
       expect(response).to have_http_status(:bad_request)
       expect(response.parsed_body["error"]).to be_present
     end
+
+    it "creates a query metric for a supported counter and enqueues backfill", :no_transaction do
+      metric_name = "opentelemetry_traces_1_minute_parent_span_id_is_null_counter"
+      sql = <<~SQL
+        SELECT date_bin('1 minute', timestamp) AS time, COUNT(*) AS c
+        FROM opentelemetry_traces
+        WHERE parent_span_id IS NULL
+          AND timestamp >= '2026-01-01 00:00:00'
+          AND timestamp < '2026-01-02 00:00:00'
+        GROUP BY time
+      SQL
+
+      expect {
+        post "/api/v1/sql", params: { sql: sql }, as: :json
+      }.to have_enqueued_job(TraceToMetrics::BackfillJob)
+
+      expect(response).to have_http_status(:ok)
+      expect(TraceToMetric.find_by(name: metric_name)).to be_present
+      expect(Greptime::Connection.table_exists?(metric_name)).to eq(true)
+    ensure
+      drop_metric_tables(metric_name)
+    end
   end
 end

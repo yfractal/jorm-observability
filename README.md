@@ -45,6 +45,10 @@ curl -s http://127.0.0.1:3000/api/v1/sql \
 
 Response shape: `{ "data": [ ...rows ], "sql": "...", "used_metric": bool, "metric_name": ... }`.
 
+Supported `COUNT` queries also create a counter metric (when every `WHERE` predicate is `=`, `IS NULL`, or `IS NOT NULL`), store a backfill watermark on `trace_to_metrics`, and enqueue `TraceToMetrics::BackfillJob` for existing spans. Live `OpentelemetryTraceCreatedJob` writes only spans after that watermark.
+
+Verify dashboard counters after backfill with `bin/rails runner script/check_counter_metric_backfill.rb` (run `bin/jobs` so backfill jobs execute).
+
 Non-SELECT statements are rejected (`422`). There is no auth on this endpoint yet — do not expose it publicly without adding authentication.
 
 Compose services: GreptimeDB, Postgres (queue), and Grafana (Infinity datasource → `host.docker.internal:3000`).

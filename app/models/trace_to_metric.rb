@@ -4,6 +4,7 @@ class TraceToMetric < ApplicationRecord
 
   METRIC_TYPES = %w[counter].freeze
   NAME_FORMAT = /\A[a-z][a-z0-9_]*\z/
+  QUERY_SPAN_NAME = "query"
   STABLE_GREPTIME_TS = Time.utc(1970, 1, 1)
   RESERVED_TABLE_NAMES = %w[
     opentelemetry_traces
@@ -16,9 +17,11 @@ class TraceToMetric < ApplicationRecord
   ].freeze
 
   serialize :dimensions, coder: JSON
+  serialize :filters, coder: JSON
 
   before_validation :derive_name, on: :create
   before_validation :normalize_dimensions
+  before_validation :normalize_filters
   before_validation :ensure_greptime_ts
   before_validation :ensure_version
 
@@ -31,12 +34,19 @@ class TraceToMetric < ApplicationRecord
   validate :dimensions_are_valid
   validate :dimensions_only_added, on: :update
 
-
   after_create :create_metric_table!
   after_update :evolve_metric_table!, if: :saved_change_to_dimensions?
 
   def self.for_span_name(span_name)
-    find_by(span_name: span_name)
+    where.not(span_name: QUERY_SPAN_NAME).find_by(span_name: span_name)
+  end
+
+  def self.query_metrics
+    where(span_name: QUERY_SPAN_NAME)
+  end
+
+  def query_metric?
+    span_name == QUERY_SPAN_NAME
   end
 
   def dimension_columns
@@ -56,6 +66,38 @@ class TraceToMetric < ApplicationRecord
     value.nil? ? [] : value
   end
 
+  def filters
+    value = super
+    value.nil? ? [] : value
+  end
+
+  def watermark_ready?
+    !backfill_through_timestamp.nil?
+  end
+
+  def backfill_finished?
+    !backfill_finished_at.nil?
+  end
+
+  def after_watermark?(trace)
+    return false unless watermark_ready?
+
+    cmp = [
+      trace.timestamp.utc,
+      trace.trace_id.to_s,
+      trace.span_id.to_s
+    ] <=> [
+      backfill_through_timestamp.utc,
+      backfill_through_trace_id.to_s,
+      backfill_through_span_id.to_s
+    ]
+    cmp > 0
+  end
+
+  def matches_trace?(trace)
+    Array(filters).all? { |filter| filter_matches_trace?(filter, trace) }
+  end
+
   # GreptimeDB has no UPDATE; rewrite mutable fields via INSERT overwrite.
   def update_columns(attributes)
     attributes.each { |key, value| public_send("#{key}=", value) }
@@ -68,6 +110,7 @@ class TraceToMetric < ApplicationRecord
 
   def derive_name
     return if name.present?
+    return if query_metric?
     return if span_name.blank? || metric_type.blank?
 
     self.name = "#{self.class.slugify_span_name(span_name)}_#{metric_type}"
@@ -75,6 +118,10 @@ class TraceToMetric < ApplicationRecord
 
   def normalize_dimensions
     self.dimensions = Array(dimensions).map(&:to_s)
+  end
+
+  def normalize_filters
+    self.filters = Array(filters).map { |f| f.deep_stringify_keys }
   end
 
   def ensure_greptime_ts
@@ -93,12 +140,12 @@ class TraceToMetric < ApplicationRecord
   end
 
   def name_matches_convention
+    return if query_metric?
     return if span_name.blank? || metric_type.blank? || name.blank?
 
     expected = "#{self.class.slugify_span_name(span_name)}_#{metric_type}"
     errors.add(:name, "must be #{expected}") unless name == expected
   end
-
 
   def name_not_reserved
     return if name.blank?
@@ -151,11 +198,12 @@ class TraceToMetric < ApplicationRecord
     connection = Greptime::Connection
     table = connection.quote_table_name(self.class.table_name)
 
-    dims_json = JSON.generate(Array(dimensions))
     sql = <<~SQL.squish
       INSERT INTO #{table}
-        ("name", "span_name", "metric_type", "dimensions", "version", "greptime_ts")
-      VALUES (?, ?, ?, ?, ?, ?)
+        ("name", "span_name", "metric_type", "dimensions", "filters", "bucket_interval",
+         "backfill_through_timestamp", "backfill_through_trace_id", "backfill_through_span_id",
+         "backfill_finished_at", "version", "greptime_ts")
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     SQL
 
     connection.exec_query(
@@ -165,11 +213,53 @@ class TraceToMetric < ApplicationRecord
         name,
         span_name,
         metric_type,
-        dims_json,
+        JSON.generate(Array(dimensions)),
+        JSON.generate(Array(filters)),
+        bucket_interval,
+        backfill_through_timestamp,
+        backfill_through_trace_id,
+        backfill_through_span_id,
+        backfill_finished_at,
         version.to_i,
         greptime_ts
       ]
     )
   end
-end
 
+  def filter_matches_trace?(filter, trace)
+    column = filter["column"] || filter[:column]
+    op = filter["op"] || filter[:op]
+    expected = filter.key?("value") ? filter["value"] : filter[:value]
+    actual = trace_filter_value(trace, column)
+
+    case op
+    when "IS NULL"
+      actual.nil? || actual == ""
+    when "IS NOT NULL"
+      !(actual.nil? || actual == "")
+    when "="
+      actual.to_s == expected.to_s
+    else
+      false
+    end
+  end
+
+  def trace_filter_value(trace, column)
+    key = column.to_s
+    span_attrs = trace.span_attributes || {}
+    return span_attrs[key] if span_attrs.key?(key)
+    return span_attrs[key.delete_prefix("span_attributes.")] if key.start_with?("span_attributes.") && span_attrs.key?(key.delete_prefix("span_attributes."))
+
+    resource_attrs = trace.resource_attributes || {}
+    return resource_attrs[key] if resource_attrs.key?(key)
+    return resource_attrs[key.delete_prefix("resource_attributes.")] if key.start_with?("resource_attributes.") && resource_attrs.key?(key.delete_prefix("resource_attributes."))
+
+    return trace.public_send(key) if trace.respond_to?(key)
+
+    # Greptime stores dotted attribute names as columns; also check flat attributes.
+    flat = trace.instance_variable_get(:@flat_attributes)
+    return flat[key] if flat.is_a?(Hash) && flat.key?(key)
+
+    nil
+  end
+end

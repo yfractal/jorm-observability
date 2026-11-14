@@ -34,6 +34,7 @@ module SqlToMetrics
         dimensions: dimensions,
         distinct_column: distinct_column,
         filters: filters,
+        unsupported_predicates: mapped[:unsupported_predicates],
         time_range: mapped[:time_range],
         columns: build_columns(dimension_columns),
         primary_key: dimension_columns
@@ -45,6 +46,7 @@ module SqlToMetrics
     def validate!(mapped)
       raise UnsupportedError, "source table is required" if mapped[:source_table].blank?
       raise UnsupportedError, "only counter metrics are supported" unless mapped[:metric_type] == "counter"
+      raise UnsupportedError, "unsupported where predicates" if mapped[:unsupported_predicates]
 
       counter_aggs = Array(mapped[:res_targets]).select { |t| t[:kind] == :agg && t[:func] == "count" }
       raise UnsupportedError, "exactly one counter aggregate is required" unless counter_aggs.size == 1
