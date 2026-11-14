@@ -6,7 +6,7 @@ Rails app that ingests OTLP traces and derives counter metrics.
 
 | Role | Engine | Default connection |
 |------|--------|--------------------|
-| **primary** | [GreptimeDB](https://greptime.com/) via PostgreSQL wire protocol (`pg` gem) | `127.0.0.1:4003` / database `public` |
+| **primary** | [GreptimeDB](https://greptime.com/) via PostgreSQL wire protocol (`pg` gem) | `127.0.0.1:4003` / database `public` (dev), `jorm_observability_test` (test) |
 | **queue** | PostgreSQL (solid_queue only) | `jorm_observability_*_queue` |
 
 GreptimeDB is not a drop-in Postgres server: tables use a TIME INDEX, counters are append-only (`value=1` rows aggregated with `SUM`), and definition updates use insert-overwrite instead of `UPDATE`.
@@ -28,7 +28,9 @@ The Performance dashboard maps OTLP spans to Rails-style panels: Rack `SPAN_KIND
 
 - `GREPTIME_HOST` (default `127.0.0.1`)
 - `GREPTIME_PORT` (default `4003`)
-- `GREPTIME_DATABASE` (default `public`)
+- `GREPTIME_DATABASE` (default `public`, development/production)
+- `GREPTIME_TEST_DATABASE` (default `jorm_observability_test` — RSpec never uses `public`)
+- `GREPTIME_HTTP` (default `http://$GREPTIME_HOST:4000`, used to `CREATE DATABASE`)
 - `GREPTIME_USERNAME` / `GREPTIME_PASSWORD` (optional)
 - `DATABASE_URL` (optional full URL for primary, e.g. `postgres://@127.0.0.1:4003/public`)
 - `QUEUE_DATABASE_URL` (production queue)

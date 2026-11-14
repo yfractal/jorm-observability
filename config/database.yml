@@ -4,7 +4,8 @@
 # Greptime:
 #   GREPTIME_HOST (default: 127.0.0.1)
 #   GREPTIME_PORT (default: 4003)
-#   GREPTIME_DATABASE (default: public)
+#   GREPTIME_DATABASE (default: public) — development/production only
+#   GREPTIME_TEST_DATABASE (default: jorm_observability_test) — never shares public
 #   GREPTIME_USERNAME / GREPTIME_PASSWORD (optional)
 #   Or set DATABASE_URL=postgres://user:pass@host:4003/public
 #
@@ -42,7 +43,8 @@ development:
 test:
   primary:
     <<: *default_greptime
-    database: <%= ENV.fetch("GREPTIME_TEST_DATABASE", ENV.fetch("GREPTIME_DATABASE", "public")) %>
+    # Isolated from development `public` so RSpec truncate cannot wipe local data.
+    database: <%= ENV.fetch("GREPTIME_TEST_DATABASE", "jorm_observability_test") %>
     max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 12 } %>
   queue:
     <<: *default_postgres

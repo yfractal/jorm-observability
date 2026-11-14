@@ -8,7 +8,21 @@ namespace :greptime do
   desc "Apply GreptimeDB primary schema (opentelemetry_traces, trace_to_metrics)"
   task prepare: :environment do
     Greptime::Schema.load!
-    puts "GreptimeDB primary schema ready"
+    db = ActiveRecord::Base.connection_db_config.configuration_hash[:database]
+    puts "GreptimeDB primary schema ready (#{db})"
+
+    # Keep the isolated test catalog in sync when preparing development.
+    if Rails.env.development?
+      test_db = ENV.fetch("GREPTIME_TEST_DATABASE", "jorm_observability_test")
+      if test_db != db
+        Greptime::Schema.ensure_database!(test_db)
+        test_config = ActiveRecord::Base.configurations.configs_for(env_name: "test", name: "primary")
+        ActiveRecord::Base.establish_connection(test_config)
+        Greptime::Schema.load!
+        puts "GreptimeDB test schema ready (#{test_db})"
+        ActiveRecord::Base.establish_connection(:primary)
+      end
+    end
   end
 
   desc "Import opentelemetry_traces from a source GreptimeDB via Parquet COPY"
@@ -17,7 +31,7 @@ namespace :greptime do
     source_db = ENV.fetch("SOURCE_DB", "lobsters")
     source_table = ENV.fetch("SOURCE_TABLE", "opentelemetry_traces")
     dest_http = ENV.fetch("DEST_GREPTIME_HTTP", "http://localhost:4000")
-    dest_db = ENV.fetch("DEST_DB", "public")
+    dest_db = ENV.fetch("DEST_DB", ENV.fetch("GREPTIME_DATABASE", "public"))
     dest_table = ENV.fetch("DEST_TABLE", "opentelemetry_traces")
     source_container = ENV.fetch("SOURCE_GREPTIME_CONTAINER", "jorm-greptimedb-1")
     dest_container = ENV.fetch("DEST_GREPTIME_CONTAINER", "jorm-observability-greptimedb-1")

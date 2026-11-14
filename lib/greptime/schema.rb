@@ -1,3 +1,7 @@
+require "json"
+require "net/http"
+require "uri"
+
 module Greptime
   module Schema
     SCHEMA_DIR = Rails.root.join("db/greptime")
@@ -14,12 +18,33 @@ module Greptime
     module_function
 
     def load!
+      ensure_current_database!
       connection = ActiveRecord::Base.connection
       Dir[SCHEMA_DIR.join("*.sql")].sort.each do |path|
         sql = File.read(path)
         connection.execute(sql)
       end
       migrate_trace_to_metrics_columns!
+    end
+
+    def ensure_current_database!
+      db = ActiveRecord::Base.connection_db_config.configuration_hash[:database].to_s
+      return if db.blank? || db == "public"
+
+      ensure_database!(db)
+    end
+
+    def ensure_database!(database)
+      http = ENV.fetch(
+        "GREPTIME_HTTP",
+        "http://#{ENV.fetch('GREPTIME_HOST', '127.0.0.1')}:4000"
+      )
+      # CREATE DATABASE is catalog-level; run against the default public catalog.
+      uri = URI("#{http}/v1/sql")
+      uri.query = URI.encode_www_form(db: "public", sql: "CREATE DATABASE IF NOT EXISTS #{database}")
+      response = Net::HTTP.get_response(uri)
+      body = JSON.parse(response.body)
+      raise "Greptime CREATE DATABASE #{database} failed: #{body['error']}" if body["error"]
     end
 
     def migrate_trace_to_metrics_columns!
