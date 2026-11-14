@@ -20,7 +20,7 @@ bin/rails db:prepare   # also prepares the PostgreSQL queue DB
 bin/rails server
 ```
 
-Grafana (provisioned Traces dashboard) is at [http://localhost:3001](http://localhost:3001). It queries GreptimeDB only through this app — keep `bin/rails server` running on port 3000.
+Grafana (provisioned Traces dashboard) is at [http://localhost:5001](http://localhost:5001). It queries GreptimeDB only through this app — keep `bin/rails server` running on port 3000.
 
 ### Environment
 
