@@ -118,11 +118,12 @@ module SqlToMetrics
 
       time_range = { from: nil, to: nil }
       filters = []
+      bound_column = time_column.presence || "timestamp"
 
       flatten_bool_and(where_node).each do |node|
         next if skippable_predicate?(node)
 
-        if time_column && (bound = classify_time_bound(node, time_column))
+        if (bound = classify_time_bound(node, bound_column))
           merge_time_bound!(time_range, bound)
         elsif (filter = classify_filter(node))
           filters << filter
@@ -135,9 +136,16 @@ module SqlToMetrics
     def unsupported_predicates?(where_node, time_column)
       return false if where_node.nil?
 
+      # Bare COUNT queries have no date_bin, but still filter on timestamp.
+      bound_column = time_column.presence || "timestamp"
+
       flatten_bool_and(where_node).any? do |node|
         next false if skippable_predicate?(node)
-        next false if time_column && classify_time_bound(node, time_column)
+        begin
+          next false if classify_time_bound(node, bound_column)
+        rescue UnsupportedError
+          next true
+        end
         next false if classify_filter(node)
 
         true

@@ -114,26 +114,95 @@ def normalize_rows(rows)
   end
 end
 
+def span_count
+  body = post_sql("SELECT COUNT(*) AS c FROM opentelemetry_traces")
+  Array(body["data"]).dig(0, "c").to_i
+end
+
+def failed_backfill_executions
+  SolidQueue::FailedExecution
+    .joins(:job)
+    .where(solid_queue_jobs: { class_name: "TraceToMetrics::BackfillJob" })
+end
+
+def latest_trace_watermark
+  row = Greptime::Connection.exec_query(<<~SQL.squish).to_a.first
+    SELECT timestamp, trace_id, span_id
+    FROM opentelemetry_traces
+    ORDER BY timestamp DESC, trace_id DESC, span_id DESC
+    LIMIT 1
+  SQL
+  return nil if row.nil?
+
+  {
+    backfill_through_timestamp: Time.parse(row["timestamp"].to_s).utc,
+    backfill_through_trace_id: row["trace_id"].to_s,
+    backfill_through_span_id: row["span_id"].to_s,
+    backfill_finished_at: nil
+  }
+end
+
+def refresh_stale_watermarks!
+  epoch = Time.utc(1970, 1, 1)
+  watermark = latest_trace_watermark
+  return unless watermark
+
+  TraceToMetric.query_metrics.reject(&:backfill_finished?).each do |definition|
+    next unless definition.backfill_through_timestamp.nil? ||
+      definition.backfill_through_timestamp.utc <= epoch
+
+    puts "Refresh watermark for #{definition.name}"
+    definition.update_columns(watermark)
+  end
+end
+
+def recover_failed_backfills!
+  failed = failed_backfill_executions.includes(:job).to_a
+  return if failed.empty?
+
+  puts "Recovering #{failed.size} failed TraceToMetrics::BackfillJob execution(s)…"
+  failed.each do |execution|
+    job = execution.job
+    metric_name = Array(job.arguments["arguments"] || job.arguments[:arguments]).first
+    puts "  retry #{metric_name.inspect}: #{execution.error.to_s[0, 120]}"
+    execution.destroy!
+    job.destroy! if job.finished_at.nil?
+    TraceToMetrics::BackfillJob.perform_later(metric_name) if metric_name.present?
+  end
+end
+
 def wait_for_backfill_jobs!(timeout_seconds)
+  refresh_stale_watermarks!
+  recover_failed_backfills!
+
   deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout_seconds
   loop do
     pending = SolidQueue::Job
       .where(class_name: "TraceToMetrics::BackfillJob", finished_at: nil)
       .count
-    failed = SolidQueue::FailedExecution
-      .joins(:job)
-      .where(solid_queue_jobs: { class_name: "TraceToMetrics::BackfillJob" })
-      .count
-
+    failed = failed_backfill_executions.count
     unfinished_metrics = TraceToMetric.query_metrics.reject(&:backfill_finished?).map(&:name)
 
     if failed.positive?
-      abort "Backfill jobs failed (#{failed}). Check solid_queue_failed_executions."
+      details = failed_backfill_executions.includes(:job).map { |f|
+        args = f.job.arguments
+        name = Array(args["arguments"] || args[:arguments]).first
+        "#{name}: #{f.error.to_s[0, 160]}"
+      }
+      abort "Backfill jobs failed (#{failed}):\n  #{details.join("\n  ")}\nIs bin/jobs running?"
     end
 
     if pending.zero? && unfinished_metrics.empty?
       puts "All TraceToMetrics::BackfillJob finished."
       return
+    end
+
+    # Unfinished metrics with no pending/failed job — re-enqueue.
+    if pending.zero? && unfinished_metrics.any?
+      unfinished_metrics.each do |name|
+        puts "Re-enqueue backfill for #{name}"
+        TraceToMetrics::BackfillJob.perform_later(name)
+      end
     end
 
     if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
@@ -147,6 +216,12 @@ end
 
 puts "POST #{API_URL}"
 puts "Range #{FROM_TS} .. #{TO_TS}"
+
+count = span_count
+puts "opentelemetry_traces rows: #{count}"
+if count.zero?
+  abort "No spans loaded. Import traces first, then re-run this script with bin/jobs running."
+end
 
 before = {}
 QUERIES.each do |label, sql|
