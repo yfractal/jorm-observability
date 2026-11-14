@@ -1,0 +1,1649 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Rails performance overview from OTLP spans in GreptimeDB. Request panels use Rack SERVER spans; DB panels use spans with db.system; Jobs/Mails need ActiveJob/ActionMailer instrumentation. Instantiation is omitted (no OTel record_count).",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "jorm-sql"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "columns": [
+            {
+              "selector": "value",
+              "text": "value",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "table",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT COUNT(*) AS value FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND span_kind = 'SPAN_KIND_SERVER' AND \\\"span_attributes.http.response.status_code\\\" IS NOT NULL\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Requests served",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "jorm-sql"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "columns": [
+            {
+              "selector": "value",
+              "text": "value",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "table",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT COUNT(*) AS value FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND scope_name = 'OpenTelemetry::Instrumentation::ActiveJob'\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Jobs Executed",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "jorm-sql"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "columns": [
+            {
+              "selector": "value",
+              "text": "value",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "table",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT COUNT(*) AS value FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND scope_name = 'OpenTelemetry::Instrumentation::ActionMailer'\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Mails Sent",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "jorm-sql"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "columns": [
+            {
+              "selector": "value",
+              "text": "value",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "table",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT AVG(duration_nano) / 1e6 AS value FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND span_kind = 'SPAN_KIND_SERVER' AND \\\"span_attributes.http.response.status_code\\\" IS NOT NULL\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Average Response",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "jorm-sql"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "columns": [
+            {
+              "selector": "value",
+              "text": "value",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "table",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT AVG(duration_nano) / 1e6 AS value FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND \\\"span_attributes.db.system\\\" IS NOT NULL\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Average Database Response",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "jorm-sql"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "columns": [
+            {
+              "selector": "value",
+              "text": "value",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "table",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT AVG(duration_nano) / 1e6 AS value FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND scope_name = 'OpenTelemetry::Instrumentation::ActiveJob'\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Average Job Execution",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "jorm-sql"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 3
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "ok",
+              "text": "ok",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, COUNT(*) AS ok FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND span_kind = 'SPAN_KIND_SERVER' AND \\\"span_attributes.http.response.status_code\\\" IS NOT NULL AND \\\"span_attributes.http.response.status_code\\\" < 400 GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        },
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "error",
+              "text": "error",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "B",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, COUNT(*) AS error FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND span_kind = 'SPAN_KIND_SERVER' AND \\\"span_attributes.http.response.status_code\\\" IS NOT NULL AND \\\"span_attributes.http.response.status_code\\\" >= 400 GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Requests per $per",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "jorm-sql"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 3
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "p99",
+              "text": "p99",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, approx_percentile_cont(duration_nano, 0.99) / 1e6 AS p99 FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND span_kind = 'SPAN_KIND_SERVER' AND \\\"span_attributes.http.response.status_code\\\" IS NOT NULL GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        },
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "p95",
+              "text": "p95",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "B",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, approx_percentile_cont(duration_nano, 0.95) / 1e6 AS p95 FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND span_kind = 'SPAN_KIND_SERVER' AND \\\"span_attributes.http.response.status_code\\\" IS NOT NULL GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        },
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "p50",
+              "text": "p50",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "C",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, approx_percentile_cont(duration_nano, 0.50) / 1e6 AS p50 FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND span_kind = 'SPAN_KIND_SERVER' AND \\\"span_attributes.http.response.status_code\\\" IS NOT NULL GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        },
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "mean",
+              "text": "mean",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "D",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, AVG(duration_nano) / 1e6 AS mean FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND span_kind = 'SPAN_KIND_SERVER' AND \\\"span_attributes.http.response.status_code\\\" IS NOT NULL GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Controller Action Performance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "jorm-sql"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "p99",
+              "text": "p99",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, approx_percentile_cont(duration_nano, 0.99) / 1e6 AS p99 FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND \\\"span_attributes.db.system\\\" IS NOT NULL GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        },
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "p95",
+              "text": "p95",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "B",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, approx_percentile_cont(duration_nano, 0.95) / 1e6 AS p95 FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND \\\"span_attributes.db.system\\\" IS NOT NULL GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        },
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "p50",
+              "text": "p50",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "C",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, approx_percentile_cont(duration_nano, 0.50) / 1e6 AS p50 FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND \\\"span_attributes.db.system\\\" IS NOT NULL GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        },
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "mean",
+              "text": "mean",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "D",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, AVG(duration_nano) / 1e6 AS mean FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND \\\"span_attributes.db.system\\\" IS NOT NULL GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Database Query Performance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "jorm-sql"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "succeeded",
+              "text": "succeeded",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, COUNT(*) AS succeeded FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND scope_name = 'OpenTelemetry::Instrumentation::ActiveJob' AND (span_status_code IS NULL OR span_status_code != 'STATUS_CODE_ERROR') GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        },
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "failed",
+              "text": "failed",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "B",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, COUNT(*) AS failed FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND scope_name = 'OpenTelemetry::Instrumentation::ActiveJob' AND span_status_code = 'STATUS_CODE_ERROR' GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Jobs per $per",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "jorm-sql"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "p99",
+              "text": "p99",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, approx_percentile_cont(duration_nano, 0.99) / 1e6 AS p99 FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND scope_name = 'OpenTelemetry::Instrumentation::ActiveJob' GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        },
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "p95",
+              "text": "p95",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "B",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, approx_percentile_cont(duration_nano, 0.95) / 1e6 AS p95 FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND scope_name = 'OpenTelemetry::Instrumentation::ActiveJob' GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        },
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "p50",
+              "text": "p50",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "C",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, approx_percentile_cont(duration_nano, 0.50) / 1e6 AS p50 FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND scope_name = 'OpenTelemetry::Instrumentation::ActiveJob' GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        },
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "mean",
+              "text": "mean",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "D",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, AVG(duration_nano) / 1e6 AS mean FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND scope_name = 'OpenTelemetry::Instrumentation::ActiveJob' GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "ActiveJob Performance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "jorm-sql"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "columns": [
+            {
+              "selector": "time",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "mails",
+              "text": "mails",
+              "type": "number"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "jorm-sql"
+          },
+          "filters": [],
+          "format": "timeseries",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT date_bin('$per', timestamp) AS time, COUNT(*) AS mails FROM opentelemetry_traces WHERE timestamp >= from_unixtime(${__from}/1000) AND timestamp < from_unixtime(${__to}/1000) AND ('$service_name' = '__all__' OR service_name = '$service_name') AND scope_name = 'OpenTelemetry::Instrumentation::ActionMailer' GROUP BY time ORDER BY time\"}",
+            "method": "POST"
+          }
+        }
+      ],
+      "title": "Mails per $per",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 40,
+  "tags": [
+    "jorm",
+    "performance",
+    "rails"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allValue": "__all__",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "__all__"
+        },
+        "datasource": {
+          "type": "yesoreyeram-infinity-datasource",
+          "uid": "jorm-sql"
+        },
+        "definition": "service_name",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Service",
+        "multi": false,
+        "name": "service_name",
+        "options": [],
+        "query": {
+          "columns": [
+            {
+              "selector": "service_name",
+              "text": "service_name",
+              "type": "string"
+            }
+          ],
+          "filters": [],
+          "format": "table",
+          "parser": "backend",
+          "refId": "service_name",
+          "root_selector": "$.data",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/sql",
+          "url_options": {
+            "body_content_type": "application/json",
+            "body_type": "raw",
+            "data": "{\"sql\":\"SELECT DISTINCT service_name FROM opentelemetry_traces WHERE service_name IS NOT NULL ORDER BY service_name\"}",
+            "method": "POST"
+          }
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "1m",
+          "value": "1 minute"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Per",
+        "multi": false,
+        "name": "per",
+        "options": [
+          {
+            "selected": true,
+            "text": "1m",
+            "value": "1 minute"
+          },
+          {
+            "selected": false,
+            "text": "5m",
+            "value": "5 minutes"
+          },
+          {
+            "selected": false,
+            "text": "10m",
+            "value": "10 minutes"
+          },
+          {
+            "selected": false,
+            "text": "30m",
+            "value": "30 minutes"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1 hour"
+          }
+        ],
+        "query": "1m : 1 minute,5m : 5 minutes,10m : 10 minutes,30m : 30 minutes,1h : 1 hour",
+        "skipUrlSync": false,
+        "type": "custom"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Rails Performance",
+  "uid": "jorm-performance",
+  "version": 1,
+  "weekStart": ""
+}

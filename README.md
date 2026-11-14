@@ -20,7 +20,9 @@ bin/rails db:prepare   # also prepares the PostgreSQL queue DB
 bin/rails server
 ```
 
-Grafana (provisioned Traces dashboard) is at [http://localhost:5001](http://localhost:5001). It queries GreptimeDB only through this app — keep `bin/rails server` running on port 3000.
+Grafana (provisioned **Traces** and **Rails Performance** dashboards) is at [http://localhost:5001](http://localhost:5001). It queries GreptimeDB only through this app — keep `bin/rails server` running on port 3000.
+
+The Performance dashboard maps OTLP spans to Rails-style panels: Rack `SPAN_KIND_SERVER` for requests/latency, `db.system` for DB query latency, and ActiveJob/ActionMailer `scope_name` for jobs/mails when that instrumentation is present. Instantiation is omitted (OTel has no `record_count`).
 
 ### Environment
 
