@@ -23,13 +23,15 @@ services:
       - postgres_queue_data:/var/lib/postgresql/data
 
   grafana:
-    image: grafana/grafana:11.5.2
+    # Infinity 4.x needs Grafana >= 11.6.11 for react/jsx-runtime SystemJS sharing
+    image: grafana/grafana:11.6.11
     ports:
       - "5001:3000"
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      # Prefer GF_INSTALL_PLUGINS (installs before listen). Pin-free = latest catalog version.
       GF_INSTALL_PLUGINS: yesoreyeram-infinity-datasource
       GF_SECURITY_ALLOW_EMBEDDING: "true"
     extra_hosts:
