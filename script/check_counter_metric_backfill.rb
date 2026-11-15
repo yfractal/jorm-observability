@@ -91,16 +91,18 @@ QUERIES = {
 
 def post_sql(sql)
   uri = URI(API_URL)
+  started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
   response = Net::HTTP.start(uri.host, uri.port) do |http|
     request = Net::HTTP::Post.new(uri)
     request["content-type"] = "application/json"
     request.body = JSON.generate({ "sql" => sql })
     http.request(request)
   end
+  latency_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round(1)
   body = JSON.parse(response.body)
   raise "HTTP #{response.code}: #{body}" unless response.is_a?(Net::HTTPSuccess)
 
-  body
+  body.merge("_latency_ms" => latency_ms)
 end
 
 def normalize_rows(rows)
@@ -246,8 +248,9 @@ QUERIES.each do |label, sql|
   body = post_sql(sql)
   before[label] = body
   puts format(
-    "before %-28s used_metric=%-5s metric=%s rows=%d value=%s",
+    "before %-28s latency_ms=%-7s used_metric=%-5s metric=%s rows=%d value=%s",
     label,
+    body["_latency_ms"].inspect,
     body["used_metric"].inspect,
     body["metric_name"].inspect,
     Array(body["data"]).size,
@@ -264,8 +267,9 @@ QUERIES.each do |label, sql|
   right = normalize_rows(body["data"])
   ok = left == right
   puts format(
-    "after  %-28s used_metric=%-5s metric=%s rows=%d value=%s match=%s",
+    "after  %-28s latency_ms=%-7s used_metric=%-5s metric=%s rows=%d value=%s match=%s",
     label,
+    body["_latency_ms"].inspect,
     body["used_metric"].inspect,
     body["metric_name"].inspect,
     Array(body["data"]).size,
