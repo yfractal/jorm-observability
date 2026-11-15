@@ -1,6 +1,6 @@
 # jorm-observability
 
-Rails app that ingests OTLP traces and derives counter metrics.
+Rails app that ingests OTLP traces and derives counter and gauge metrics.
 
 ## Databases
 
@@ -47,17 +47,24 @@ curl -s http://127.0.0.1:3000/api/v1/sql \
 
 Response shape: `{ "data": [ ...rows ], "sql": "...", "used_metric": bool, "metric_name": ... }`.
 
-Supported `COUNT` queries also create a counter metric (when every `WHERE` predicate is `=`, comparisons, `IS NULL`, `IS NOT NULL`, or `(col IS NULL OR col != value)`), store a backfill watermark on `trace_to_metrics`, and enqueue `TraceToMetrics::BackfillJob` for existing spans. Live `OpentelemetryTraceCreatedJob` writes only spans after that watermark.
+Supported `COUNT` queries create a **counter** metric, and `AVG(col)` / `AVG(col) / const` queries create a **gauge** metric (when every `WHERE` predicate is `=`, comparisons, `IS NULL`, `IS NOT NULL`, or `(col IS NULL OR col != value)`). Both store a backfill watermark on `trace_to_metrics` and enqueue `TraceToMetrics::BackfillJob`. Live `OpentelemetryTraceCreatedJob` writes only spans after that watermark.
 
-Verify dashboard counters after backfill with `bin/rails runner script/check_counter_metric_backfill.rb` (run `bin/jobs` so backfill jobs execute).
+Gauge tables store append-only `value_sum` + `value_count` so means re-aggregate across `$per` via `SUM(sum)/SUM(count)`.
+
+Verify dashboard metrics after backfill with `bin/jobs` running:
+
+```bash
+bin/rails runner script/check_counter_metric_backfill.rb
+bin/rails runner script/check_gauge_metric_backfill.rb
+```
 
 Non-SELECT statements are rejected (`422`). There is no auth on this endpoint yet — do not expose it publicly without adding authentication.
 
 Compose services: GreptimeDB, Postgres (queue), and Grafana (Infinity datasource → `host.docker.internal:3000`).
 
-## Metric-backed COUNT queries
+## Metric-backed COUNT / AVG queries
 
-`SqlToMetrics::HybridQuery` rewrites a `COUNT` analytics query into a single GreptimeDB statement that reads a pre-aggregated metric table for the time range it covers and the raw `opentelemetry_traces` table for the remainder (`UNION ALL` + outer `SUM`).
+`SqlToMetrics::HybridQuery` rewrites a `COUNT` or `AVG` analytics query into a single GreptimeDB statement that reads a pre-aggregated metric table for the time range it covers and the raw `opentelemetry_traces` table for the remainder (`UNION ALL` + outer `SUM` for counters, or `SUM(value_sum)/SUM(value_count)` for gauges).
 
 ```ruby
 result = SqlToMetrics::HybridQuery.call(<<~SQL)

@@ -4,9 +4,9 @@ Dashboard JSON: [rails-performance.json](rails-performance.json) (same file Graf
 
 `$per` is `1 minute`, `5 minutes`, `10 minutes`, `30 minutes`, or `1 hour`.
 
-This app only materializes **counter** metrics (`TraceToMetric::METRIC_TYPES`, `SqlToMetrics::Mapper`). Gauge and histogram below are the type each query would need; they are not implemented.
+This app materializes **counter** and **gauge** metrics (`TraceToMetric::METRIC_TYPES`). Histogram queries below still read raw traces.
 
-`COUNT(*)` is a counter. `AVG(duration_nano)` can be a gauge, but a gauge of averages does not roll up; a histogram's `sum / count` is the mean that does. `approx_percentile_cont(duration_nano, p)` is a read of a histogram of `duration_nano`. Storing p99 itself would be a gauge, and that gauge cannot be re-aggregated when `$per` changes.
+`COUNT(*)` is a counter. `AVG(duration_nano)` is a gauge: the metric table stores per-bucket `value_sum` / `value_count` (append-only), and reads compute `SUM(value_sum) / SUM(value_count)` (with the query's `/ 1e6` scale). That mean rolls up when `$per` changes. `approx_percentile_cont(duration_nano, p)` is a read of a histogram of `duration_nano`. Storing p99 itself would be a gauge that cannot be re-aggregated when `$per` changes.
 
 ## Counter
 
@@ -116,6 +116,8 @@ ORDER BY time
 ```
 
 ## Gauge
+
+Metric-backed via `SqlToMetrics::Gauge::*` (verify with `bin/rails runner script/check_gauge_metric_backfill.rb`).
 
 ### Average Response
 
