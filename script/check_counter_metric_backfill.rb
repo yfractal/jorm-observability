@@ -11,6 +11,7 @@
 #   FROM_TS       (default 2026-10-22 14:00:00)
 #   TO_TS         (default 2026-10-22 15:00:00)
 #   POLL_SECONDS  (default 120)
+#   TIME_BUCKETS  (optional comma list; default all Grafana $per values)
 
 require "json"
 require "net/http"
@@ -20,8 +21,12 @@ API_URL = ENV.fetch("SQL_API_URL", "http://127.0.0.1:3000/api/v1/sql")
 FROM_TS = ENV.fetch("FROM_TS", "2026-10-22 14:00:00")
 TO_TS = ENV.fetch("TO_TS", "2026-10-22 15:00:00")
 POLL_SECONDS = ENV.fetch("POLL_SECONDS", "120").to_i
-PER = "1 minute"
 SERVICE = "__all__"
+
+TIME_BUCKETS = ENV.fetch(
+  "TIME_BUCKETS",
+  "1 minute,5 minutes,10 minutes,30 minutes,1 hour"
+).split(",").map(&:strip).reject(&:empty).freeze
 
 SHARED = <<~SQL.squish
   timestamp >= '#{FROM_TS}'
@@ -29,7 +34,8 @@ SHARED = <<~SQL.squish
   AND ('#{SERVICE}' = '__all__' OR service_name = '#{SERVICE}')
 SQL
 
-QUERIES = {
+# Totals — no date_bin / $per.
+TOTAL_QUERIES = {
   "Requests served" => <<~SQL.squish,
     SELECT COUNT(*) AS value FROM opentelemetry_traces
     WHERE #{SHARED}
@@ -41,53 +47,58 @@ QUERIES = {
     WHERE #{SHARED}
       AND scope_name = 'OpenTelemetry::Instrumentation::ActiveJob'
   SQL
-  "Mails Sent" => <<~SQL.squish,
+  "Mails Sent" => <<~SQL.squish
     SELECT COUNT(*) AS value FROM opentelemetry_traces
     WHERE #{SHARED}
       AND scope_name = 'OpenTelemetry::Instrumentation::ActionMailer'
   SQL
-  "Requests per minute ok" => <<~SQL.squish,
-    SELECT date_bin('#{PER}', timestamp) AS time, COUNT(*) AS ok
-    FROM opentelemetry_traces
-    WHERE #{SHARED}
-      AND span_kind = 'SPAN_KIND_SERVER'
-      AND "span_attributes.http.response.status_code" IS NOT NULL
-      AND "span_attributes.http.response.status_code" < 400
-    GROUP BY time ORDER BY time
-  SQL
-  "Requests per minute error" => <<~SQL.squish,
-    SELECT date_bin('#{PER}', timestamp) AS time, COUNT(*) AS error
-    FROM opentelemetry_traces
-    WHERE #{SHARED}
-      AND span_kind = 'SPAN_KIND_SERVER'
-      AND "span_attributes.http.response.status_code" IS NOT NULL
-      AND "span_attributes.http.response.status_code" >= 400
-    GROUP BY time ORDER BY time
-  SQL
-  "Jobs per minute succeeded" => <<~SQL.squish,
-    SELECT date_bin('#{PER}', timestamp) AS time, COUNT(*) AS succeeded
-    FROM opentelemetry_traces
-    WHERE #{SHARED}
-      AND scope_name = 'OpenTelemetry::Instrumentation::ActiveJob'
-      AND (span_status_code IS NULL OR span_status_code != 'STATUS_CODE_ERROR')
-    GROUP BY time ORDER BY time
-  SQL
-  "Jobs per minute failed" => <<~SQL.squish,
-    SELECT date_bin('#{PER}', timestamp) AS time, COUNT(*) AS failed
-    FROM opentelemetry_traces
-    WHERE #{SHARED}
-      AND scope_name = 'OpenTelemetry::Instrumentation::ActiveJob'
-      AND span_status_code = 'STATUS_CODE_ERROR'
-    GROUP BY time ORDER BY time
-  SQL
-  "Mails per minute" => <<~SQL.squish
-    SELECT date_bin('#{PER}', timestamp) AS time, COUNT(*) AS mails
-    FROM opentelemetry_traces
-    WHERE #{SHARED}
-      AND scope_name = 'OpenTelemetry::Instrumentation::ActionMailer'
-    GROUP BY time ORDER BY time
-  SQL
 }.freeze
+
+def bucket_queries(per)
+  {
+    "Requests per #{per} ok" => <<~SQL.squish,
+      SELECT date_bin('#{per}', timestamp) AS time, COUNT(*) AS ok
+      FROM opentelemetry_traces
+      WHERE #{SHARED}
+        AND span_kind = 'SPAN_KIND_SERVER'
+        AND "span_attributes.http.response.status_code" IS NOT NULL
+        AND "span_attributes.http.response.status_code" < 400
+      GROUP BY time ORDER BY time
+    SQL
+    "Requests per #{per} error" => <<~SQL.squish,
+      SELECT date_bin('#{per}', timestamp) AS time, COUNT(*) AS error
+      FROM opentelemetry_traces
+      WHERE #{SHARED}
+        AND span_kind = 'SPAN_KIND_SERVER'
+        AND "span_attributes.http.response.status_code" IS NOT NULL
+        AND "span_attributes.http.response.status_code" >= 400
+      GROUP BY time ORDER BY time
+    SQL
+    "Jobs per #{per} succeeded" => <<~SQL.squish,
+      SELECT date_bin('#{per}', timestamp) AS time, COUNT(*) AS succeeded
+      FROM opentelemetry_traces
+      WHERE #{SHARED}
+        AND scope_name = 'OpenTelemetry::Instrumentation::ActiveJob'
+        AND (span_status_code IS NULL OR span_status_code != 'STATUS_CODE_ERROR')
+      GROUP BY time ORDER BY time
+    SQL
+    "Jobs per #{per} failed" => <<~SQL.squish,
+      SELECT date_bin('#{per}', timestamp) AS time, COUNT(*) AS failed
+      FROM opentelemetry_traces
+      WHERE #{SHARED}
+        AND scope_name = 'OpenTelemetry::Instrumentation::ActiveJob'
+        AND span_status_code = 'STATUS_CODE_ERROR'
+      GROUP BY time ORDER BY time
+    SQL
+    "Mails per #{per}" => <<~SQL.squish
+      SELECT date_bin('#{per}', timestamp) AS time, COUNT(*) AS mails
+      FROM opentelemetry_traces
+      WHERE #{SHARED}
+        AND scope_name = 'OpenTelemetry::Instrumentation::ActionMailer'
+      GROUP BY time ORDER BY time
+    SQL
+  }
+end
 
 def post_sql(sql)
   uri = URI(API_URL)
@@ -132,6 +143,41 @@ def format_values(rows)
   end
 
   rows.inspect
+end
+
+def print_result(phase, label, body, match: nil)
+  suffix = match.nil? ? "" : " match=#{match}"
+  puts format(
+    "%-6s %-36s latency_ms=%-7s used_metric=%-5s metric=%s rows=%d value=%s%s",
+    phase,
+    label,
+    body["_latency_ms"].inspect,
+    body["used_metric"].inspect,
+    body["metric_name"].inspect,
+    Array(body["data"]).size,
+    format_values(body["data"]),
+    suffix
+  )
+end
+
+def run_query_set(phase, queries, before: nil)
+  results = {}
+  mismatches = []
+
+  queries.each do |label, sql|
+    body = post_sql(sql)
+    results[label] = body
+
+    if before
+      ok = normalize_rows(before[label]["data"]) == normalize_rows(body["data"])
+      mismatches << label unless ok
+      print_result(phase, label, body, match: ok)
+    else
+      print_result(phase, label, body)
+    end
+  end
+
+  [ results, mismatches ]
 end
 
 def span_count
@@ -236,6 +282,7 @@ end
 
 puts "POST #{API_URL}"
 puts "Range #{FROM_TS} .. #{TO_TS}"
+puts "time_buckets=#{TIME_BUCKETS.inspect}"
 
 count = span_count
 puts "opentelemetry_traces rows: #{count}"
@@ -244,39 +291,28 @@ if count.zero?
 end
 
 before = {}
-QUERIES.each do |label, sql|
-  body = post_sql(sql)
-  before[label] = body
-  puts format(
-    "before %-28s latency_ms=%-7s used_metric=%-5s metric=%s rows=%d value=%s",
-    label,
-    body["_latency_ms"].inspect,
-    body["used_metric"].inspect,
-    body["metric_name"].inspect,
-    Array(body["data"]).size,
-    format_values(body["data"])
-  )
+mismatches = []
+
+puts "\n--- totals (no bucket) ---"
+total_before, = run_query_set("before", TOTAL_QUERIES)
+before.merge!(total_before)
+
+TIME_BUCKETS.each do |bucket|
+  puts "\n--- per #{bucket} ---"
+  bucket_before, = run_query_set("before", bucket_queries(bucket))
+  before.merge!(bucket_before)
 end
 
 wait_for_backfill_jobs!(POLL_SECONDS)
 
-mismatches = []
-QUERIES.each do |label, sql|
-  body = post_sql(sql)
-  left = normalize_rows(before[label]["data"])
-  right = normalize_rows(body["data"])
-  ok = left == right
-  puts format(
-    "after  %-28s latency_ms=%-7s used_metric=%-5s metric=%s rows=%d value=%s match=%s",
-    label,
-    body["_latency_ms"].inspect,
-    body["used_metric"].inspect,
-    body["metric_name"].inspect,
-    Array(body["data"]).size,
-    format_values(body["data"]),
-    ok
-  )
-  mismatches << label unless ok
+puts "\n--- totals (no bucket) ---"
+_, total_mismatches = run_query_set("after", TOTAL_QUERIES, before: before)
+mismatches.concat(total_mismatches)
+
+TIME_BUCKETS.each do |bucket|
+  puts "\n--- per #{bucket} ---"
+  _, bucket_mismatches = run_query_set("after", bucket_queries(bucket), before: before)
+  mismatches.concat(bucket_mismatches)
 end
 
 if mismatches.empty?
