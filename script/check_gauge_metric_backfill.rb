@@ -99,6 +99,13 @@ def post_sql(sql)
     http.request(request)
   end
   latency_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round(1)
+  unless response["content-type"].to_s.include?("json")
+    snippet = response.body.to_s[/<h2[^>]*>\s*(?:<[^>]+>\s*)*([^<]+)/m, 1] ||
+      response.body.to_s[/exception-message[^>]*>.*?message[^>]*>\s*([^<]+)/m, 1] ||
+      response.body.to_s[0, 300]
+    raise "HTTP #{response.code} non-JSON from #{API_URL}: #{snippet.to_s.strip}"
+  end
+
   body = JSON.parse(response.body)
   raise "HTTP #{response.code}: #{body}" unless response.is_a?(Net::HTTPSuccess)
 
