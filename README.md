@@ -49,7 +49,7 @@ Response shape: `{ "data": [ ...rows ], "sql": "...", "used_metric": bool, "metr
 
 Supported `COUNT` queries create a **counter** metric, and `AVG(col)` / `AVG(col) / const` queries create a **gauge** metric (when every `WHERE` predicate is `=`, comparisons, `IS NULL`, `IS NOT NULL`, or `(col IS NULL OR col != value)`). Both store a backfill watermark on `trace_to_metrics` and enqueue `TraceToMetrics::BackfillJob`. Live `OpentelemetryTraceCreatedJob` writes only spans after that watermark.
 
-Gauge tables store append-only `value_sum` + `value_count` so means re-aggregate across `$per` via `SUM(sum)/SUM(count)`.
+Gauge tables store append-only 1-minute `value_sum` + `value_count` so every Grafana `$per` shares one table and means re-aggregate via `SUM(sum)/SUM(count)`.
 
 Verify dashboard metrics after backfill with `bin/jobs` running:
 

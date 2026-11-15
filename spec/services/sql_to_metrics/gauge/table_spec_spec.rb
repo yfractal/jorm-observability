@@ -30,7 +30,7 @@ RSpec.describe SqlToMetrics::Gauge::TableSpec do
       ])
     end
 
-    it "includes interval in the name when date_bin is present" do
+    it "shares one 1-minute table across date_bin $per values" do
       sql = <<~SQL
         SELECT date_bin('5 minutes', timestamp) AS time, AVG(duration_nano) / 1e6 AS mean
         FROM opentelemetry_traces
@@ -42,10 +42,24 @@ RSpec.describe SqlToMetrics::Gauge::TableSpec do
       result = described_class.call(sql)
 
       expect(result[:name]).to eq(
-        "opentelemetry_traces_5_minutes_span_attributes_db_system_is_not_null_avg_duration_nano_gauge"
+        "opentelemetry_traces_span_attributes_db_system_is_not_null_avg_duration_nano_gauge"
       )
       expect(result[:time_bucketed]).to eq(true)
-      expect(result[:bucket_interval]).to eq("5 minutes")
+      expect(result[:bucket_interval]).to eq("1 minute")
+      expect(result[:query_interval]).to eq("5 minutes")
+    end
+
+    it "uses the same name for bare AVG and every $per" do
+      filters_sql = "span_kind = 'SPAN_KIND_SERVER'"
+      names = [
+        "SELECT AVG(duration_nano) AS value FROM opentelemetry_traces WHERE #{filters_sql}",
+        "SELECT date_bin('1 minute', timestamp) AS time, AVG(duration_nano) AS mean FROM opentelemetry_traces WHERE #{filters_sql} GROUP BY time",
+        "SELECT date_bin('1 hour', timestamp) AS time, AVG(duration_nano) AS mean FROM opentelemetry_traces WHERE #{filters_sql} GROUP BY time"
+      ].map { |sql| described_class.call(sql)[:name] }
+
+      expect(names.uniq).to eq([
+        "opentelemetry_traces_span_kind_span_kind_server_avg_duration_nano_gauge"
+      ])
     end
   end
 

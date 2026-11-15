@@ -3,6 +3,8 @@
 module SqlToMetrics
   module Gauge
     class TableSpec
+      STORAGE_INTERVAL = "1 minute"
+
       def self.call(sql)
         new(sql).call
       end
@@ -23,23 +25,24 @@ module SqlToMetrics
         value_column = avg[:column]
         scale = avg[:scale]
 
-        name_interval = time_bucket&.dig(:interval)
+        # Always store 1-minute buckets under a name that omits date_bin, so
+        # bare AVG and every Grafana $per share one table and re-aggregate.
         name = derive_name(
           source_table: mapped[:source_table],
-          bucket_interval: name_interval,
           filters: filters,
           value_column: value_column
         )
         validate_name!(name)
 
-        bucket_interval = name_interval.presence || "1 minute"
+        query_interval = time_bucket&.dig(:interval).presence || STORAGE_INTERVAL
         bucket_column = time_bucket&.dig(:column).presence || "timestamp"
 
         {
           name: name,
           metric_type: "gauge",
           source_table: mapped[:source_table],
-          bucket_interval: bucket_interval,
+          bucket_interval: STORAGE_INTERVAL,
+          query_interval: query_interval,
           bucket_column: bucket_column,
           time_bucketed: time_bucket.present?,
           dimensions: dimensions,
@@ -75,9 +78,8 @@ module SqlToMetrics
         Array(res_targets).find { |t| t[:kind] == :agg && t[:func] == "avg" }
       end
 
-      def derive_name(source_table:, bucket_interval:, filters:, value_column:)
+      def derive_name(source_table:, filters:, value_column:)
         parts = [ source_table ]
-        parts << TraceToMetric.slugify_span_name(bucket_interval) if bucket_interval.present?
         parts.concat(filters.map { |f| filter_slug(f) })
         parts << "avg_#{TraceToMetric.sanitize_dimension(value_column)}"
         parts << "gauge"

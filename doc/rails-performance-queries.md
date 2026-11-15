@@ -6,7 +6,7 @@ Dashboard JSON: [rails-performance.json](rails-performance.json) (same file Graf
 
 This app materializes **counter**, **gauge**, and **histogram** metrics (`TraceToMetric::METRIC_TYPES`). Histograms store UDDSketch states (`uddsketch_state`) per bucket and read them back with `uddsketch_merge` / `uddsketch_calc`, so p99/p95/p50 and every `$per` share one table.
 
-`COUNT(*)` is a counter. `AVG(duration_nano)` is a gauge: the metric table stores per-bucket `value_sum` / `value_count` (append-only), and reads compute `SUM(value_sum) / SUM(value_count)` (with the query's `/ 1e6` scale). That mean rolls up when `$per` changes. `approx_percentile_cont(duration_nano, p)` is a read of a histogram of `duration_nano`. Storing p99 itself would be a gauge that cannot be re-aggregated when `$per` changes.
+`COUNT(*)` is a counter. `AVG(duration_nano)` is a gauge: one 1-minute table per filter set stores append-only `value_sum` / `value_count`, and reads compute `SUM(value_sum) / SUM(value_count)` (with the query's `/ 1e6` scale). Bare AVG and every `$per` share that table; the mean rolls up via `date_bin($per, bucket)`. `approx_percentile_cont(duration_nano, p)` is a read of a histogram of `duration_nano`. Storing p99 itself would be a gauge that cannot be re-aggregated when `$per` changes.
 
 ## Counter
 

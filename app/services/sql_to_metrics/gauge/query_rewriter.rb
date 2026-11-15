@@ -29,6 +29,8 @@ module SqlToMetrics
         end
 
         query_range = resolve_query_range(mapped[:time_range])
+        # Split on the stored 1-minute grid so $per queries still use complete
+        # metric minutes, then re-bin in the outer SELECT.
         segments = SqlToMetrics::QueryRewriter.split_ranges(query_range, coverage, spec[:bucket_interval])
 
         if segments[:metric].nil?
@@ -43,6 +45,8 @@ module SqlToMetrics
 
       def compatible?(mapped, spec)
         return false if spec[:bucket_interval].blank?
+        return false if spec[:query_interval].blank?
+        return false unless Interval.multiple?(spec[:query_interval], spec[:bucket_interval])
         return false if spec[:bucket_column].blank?
         return false if spec[:value_column].blank?
         return false unless Greptime::Connection.table_exists?(spec[:name])
@@ -89,7 +93,8 @@ module SqlToMetrics
 
       def build_sql(mapped, spec, segments)
         connection = Greptime::Connection
-        interval = spec[:bucket_interval]
+        storage_interval = spec[:bucket_interval]
+        query_interval = spec[:query_interval]
         bucket_column = spec[:bucket_column]
         dimensions = Array(spec[:dimensions])
         dim_cols = dimensions.map { |d| TraceToMetric.sanitize_dimension(d) }
@@ -98,7 +103,7 @@ module SqlToMetrics
         scale = spec[:scale]
 
         metric_sql = build_metric_subquery(spec, dim_cols, quoted_dims, segments[:metric])
-        raw_sql = build_raw_subquery(mapped, spec, dimensions, quoted_dims, bucket_column, interval, segments[:raw])
+        raw_sql = build_raw_subquery(mapped, spec, dimensions, quoted_dims, bucket_column, storage_interval, segments[:raw])
 
         inner =
           if raw_sql
@@ -120,7 +125,7 @@ module SqlToMetrics
 
         time_alias = mapped[:time_bucket]&.dig(:alias).presence || "time"
         outer_select = [
-          "date_bin(#{connection.quote(interval)}, bucket) AS #{connection.quote_column_name(time_alias)}",
+          "date_bin(#{connection.quote(query_interval)}, bucket) AS #{connection.quote_column_name(time_alias)}",
           *quoted_dims,
           mean_expr
         ].join(", ")
