@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS trace_to_metrics (
   "backfill_through_span_id" STRING,
   "backfill_finished_at" TIMESTAMP,
   "version" INT,
+  "value_column" STRING,
   "greptime_ts" TIMESTAMP DEFAULT CURRENT_TIMESTAMP() TIME INDEX,
   PRIMARY KEY ("name")
 ) WITH ('merge_mode'='last_row');

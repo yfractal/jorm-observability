@@ -4,7 +4,7 @@ Dashboard JSON: [rails-performance.json](rails-performance.json) (same file Graf
 
 `$per` is `1 minute`, `5 minutes`, `10 minutes`, `30 minutes`, or `1 hour`.
 
-This app only materializes **counter** metrics (`TraceToMetric::METRIC_TYPES`, `SqlToMetrics::Mapper`). Gauge and histogram below are the type each query would need; they are not implemented.
+This app materializes **counter** metrics (`COUNT`, `SqlToMetrics::Mapper`) and **histogram** metrics (`approx_percentile_cont`, `HistogramMetrics`). Histograms are stored as UDDSketch states (`uddsketch_state`) per bucket and read back with `uddsketch_merge` / `uddsketch_calc`, so p99/p95/p50 and every `$per` share one table. Gauge below is the type those queries would need; it is not implemented.
 
 `COUNT(*)` is a counter. `AVG(duration_nano)` can be a gauge, but a gauge of averages does not roll up; a histogram's `sum / count` is the mean that does. `approx_percentile_cont(duration_nano, p)` is a read of a histogram of `duration_nano`. Storing p99 itself would be a gauge, and that gauge cannot be re-aggregated when `$per` changes.
 
@@ -193,7 +193,7 @@ ORDER BY time
 
 ## Histogram
 
-Each panel runs the same statement three times, with quantile `0.99` (`p99`), `0.95` (`p95`), and `0.50` (`p50`).
+Served from a histogram metric (verify with `bin/rails runner script/check_histogram_metric_backfill.rb`). Each panel runs the same statement three times, with quantile `0.99` (`p99`), `0.95` (`p95`), and `0.50` (`p50`).
 
 ### Controller Action Performance — p99 / p95 / p50
 

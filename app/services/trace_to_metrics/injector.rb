@@ -42,6 +42,8 @@ module TraceToMetrics
     end
 
     def call
+      return HistogramMetrics::Injector.new(@trace, @definition).call if @definition.metric_type == "histogram"
+
       unless @definition.metric_type == "counter"
         Rails.logger.warn(
           "TraceToMetrics::Injector skipping unsupported metric_type=" \

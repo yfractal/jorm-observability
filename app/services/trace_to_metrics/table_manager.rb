@@ -19,6 +19,8 @@ module TraceToMetrics
       raise Error, "table name is reserved: #{@table_name}" if reserved?
       raise Error, "table already exists: #{@table_name}" if Greptime::Connection.table_exists?(@table_name)
 
+      return HistogramMetrics::Table.create!(@definition) if @definition.try(:metric_type) == "histogram"
+
       dimension_columns = @definition.dimension_columns
       quoted_table = Greptime::Connection.quote_table_name(@table_name)
 
