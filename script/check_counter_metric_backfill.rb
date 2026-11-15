@@ -160,6 +160,66 @@ def print_result(phase, label, body, match: nil)
   )
 end
 
+def speedup(before_ms, after_ms)
+  return "n/a" if before_ms.nil? || after_ms.nil? || after_ms.to_f.zero?
+
+  format("%.1fx", before_ms.to_f / after_ms.to_f)
+end
+
+def print_latency_summary(before, after, labels)
+  puts "\n=== latency summary (before traces → after metrics) ==="
+  puts format(
+    "%-36s %10s %10s %10s %8s %8s %8s",
+    "query",
+    "before_ms",
+    "after_ms",
+    "delta_ms",
+    "speedup",
+    "metric?",
+    "match"
+  )
+  puts "-" * 100
+
+  before_total = 0.0
+  after_total = 0.0
+
+  labels.each do |label|
+    b = before[label]
+    a = after[label]
+    next if b.nil? || a.nil?
+
+    before_ms = b["_latency_ms"].to_f
+    after_ms = a["_latency_ms"].to_f
+    delta = (after_ms - before_ms).round(1)
+    matched = normalize_rows(b["data"]) == normalize_rows(a["data"])
+    used = a["used_metric"] ? "yes" : "no"
+
+    before_total += before_ms
+    after_total += after_ms
+
+    puts format(
+      "%-36s %10.1f %10.1f %10.1f %8s %8s %8s",
+      label,
+      before_ms,
+      after_ms,
+      delta,
+      speedup(before_ms, after_ms),
+      used,
+      matched
+    )
+  end
+
+  puts "-" * 100
+  puts format(
+    "%-36s %10.1f %10.1f %10.1f %8s",
+    "TOTAL",
+    before_total.round(1),
+    after_total.round(1),
+    (after_total - before_total).round(1),
+    speedup(before_total, after_total)
+  )
+end
+
 def run_query_set(phase, queries, before: nil)
   results = {}
   mismatches = []
@@ -291,32 +351,42 @@ if count.zero?
 end
 
 before = {}
+after = {}
 mismatches = []
+ordered_labels = []
 
 puts "\n--- totals (no bucket) ---"
 total_before, = run_query_set("before", TOTAL_QUERIES)
 before.merge!(total_before)
+ordered_labels.concat(TOTAL_QUERIES.keys)
 
 TIME_BUCKETS.each do |bucket|
   puts "\n--- per #{bucket} ---"
-  bucket_before, = run_query_set("before", bucket_queries(bucket))
+  queries = bucket_queries(bucket)
+  bucket_before, = run_query_set("before", queries)
   before.merge!(bucket_before)
+  ordered_labels.concat(queries.keys)
 end
 
 wait_for_backfill_jobs!(POLL_SECONDS)
 
 puts "\n--- totals (no bucket) ---"
-_, total_mismatches = run_query_set("after", TOTAL_QUERIES, before: before)
+total_after, total_mismatches = run_query_set("after", TOTAL_QUERIES, before: before)
+after.merge!(total_after)
 mismatches.concat(total_mismatches)
 
 TIME_BUCKETS.each do |bucket|
   puts "\n--- per #{bucket} ---"
-  _, bucket_mismatches = run_query_set("after", bucket_queries(bucket), before: before)
+  queries = bucket_queries(bucket)
+  bucket_after, bucket_mismatches = run_query_set("after", queries, before: before)
+  after.merge!(bucket_after)
   mismatches.concat(bucket_mismatches)
 end
 
+print_latency_summary(before, after, ordered_labels)
+
 if mismatches.empty?
-  puts "OK: all counter query results match after backfill."
+  puts "\nOK: all counter query results match after backfill."
 else
-  abort "Mismatch: #{mismatches.join(', ')}"
+  abort "\nMismatch: #{mismatches.join(', ')}"
 end
