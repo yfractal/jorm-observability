@@ -37,7 +37,7 @@ The Performance dashboard maps OTLP spans to Rails-style panels: Rack `SPAN_KIND
 
 ## Grafana / SQL proxy
 
-`POST /api/v1/sql` accepts a read-only `SELECT` (including `WITH … SELECT`) and runs it via `SqlToMetrics::Runner` against GreptimeDB:
+`POST /api/v1/sql` accepts a read-only `SELECT` (including `WITH … SELECT`) and runs it via `SqlToMetrics::HybridQuery` against GreptimeDB:
 
 ```bash
 curl -s http://127.0.0.1:3000/api/v1/sql \
@@ -57,10 +57,10 @@ Compose services: GreptimeDB, Postgres (queue), and Grafana (Infinity datasource
 
 ## Metric-backed COUNT queries
 
-`SqlToMetrics::Runner` rewrites a `COUNT` analytics query into a single GreptimeDB statement that reads a pre-aggregated metric table for the time range it covers and the raw `opentelemetry_traces` table for the remainder (`UNION ALL` + outer `SUM`).
+`SqlToMetrics::HybridQuery` rewrites a `COUNT` analytics query into a single GreptimeDB statement that reads a pre-aggregated metric table for the time range it covers and the raw `opentelemetry_traces` table for the remainder (`UNION ALL` + outer `SUM`).
 
 ```ruby
-result = SqlToMetrics::Runner.call(<<~SQL)
+result = SqlToMetrics::HybridQuery.call(<<~SQL)
   SELECT date_bin('1 minute', timestamp) AS time, scope_name, COUNT(*) AS count
   FROM opentelemetry_traces
   WHERE timestamp >= '2026-01-01 00:00:00' AND timestamp < '2026-01-02 00:00:00'
@@ -70,7 +70,7 @@ result.rows
 result.used_metric  # true when a compatible metric table was used
 
 # Skip rewrite and run the input SQL as-is
-SqlToMetrics::Runner.call(sql, use_metric: false)
+SqlToMetrics::HybridQuery.call(sql, use_metric: false)
 ```
 
 Metric tables are derived with `SqlToMetrics::TableSpec` (see `script/create_scope_name_minute_metrics.rb`). Coverage is `MIN(bucket)+interval` .. `MAX(bucket)` so the first and last buckets are always read from raw data.

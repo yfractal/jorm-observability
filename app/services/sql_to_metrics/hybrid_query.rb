@@ -1,5 +1,7 @@
 module SqlToMetrics
-  class Runner
+  # Runs a COUNT analytics query as metric table + raw traces when coverage allows,
+  # otherwise executes the original SQL unchanged.
+  class HybridQuery
     Result = Struct.new(:rows, :sql, :used_metric, :metric_name, :segments, keyword_init: true)
 
     def self.call(sql, use_metric: true)
@@ -23,7 +25,7 @@ module SqlToMetrics
 
     def run_with_metric
       rewritten = QueryRewriter.call(@sql)
-      rows = Greptime::Connection.exec_query(rewritten.sql, "SqlToMetrics::Runner").to_a
+      rows = Greptime::Connection.exec_query(rewritten.sql, "SqlToMetrics::HybridQuery").to_a
       Result.new(
         rows: rows,
         sql: rewritten.sql,
@@ -34,7 +36,7 @@ module SqlToMetrics
     end
 
     def run_direct
-      rows = Greptime::Connection.exec_query(@sql, "SqlToMetrics::Runner Direct").to_a
+      rows = Greptime::Connection.exec_query(@sql, "SqlToMetrics::HybridQuery Direct").to_a
       Result.new(
         rows: rows,
         sql: @sql,

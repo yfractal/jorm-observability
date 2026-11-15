@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe SqlToMetrics::Runner, :no_transaction do
+RSpec.describe SqlToMetrics::HybridQuery, :no_transaction do
   let(:metric_name) { "opentelemetry_traces_1_minute_counter" }
 
   def create_trace!(timestamp:, scope_name:)

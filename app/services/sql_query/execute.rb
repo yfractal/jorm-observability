@@ -17,9 +17,9 @@ module SqlQuery
     private
 
     def run_with_metric_fallback(sql)
-      SqlToMetrics::Runner.call(sql)
+      SqlToMetrics::HybridQuery.call(sql)
     rescue SqlToMetrics::UnsupportedError, SqlToMetrics::ParseError
-      SqlToMetrics::Runner.call(sql, use_metric: false)
+      SqlToMetrics::HybridQuery.call(sql, use_metric: false)
     end
   end
 end
