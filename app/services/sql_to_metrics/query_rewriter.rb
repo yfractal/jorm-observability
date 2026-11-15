@@ -278,13 +278,22 @@ module SqlToMetrics
           "#{col} IS NULL"
         when "IS NOT NULL"
           "#{col} IS NOT NULL"
-        when "="
-          "#{col} = #{Greptime::Connection.quote(filter[:value].to_s)}"
+        when "=", "<", "<=", ">", ">="
+          "#{col} #{filter[:op]} #{quote_filter_value(filter[:value])}"
         end
       end
       return nil if parts.empty?
 
       parts.join(" AND ")
+    end
+
+    def quote_filter_value(value)
+      case value
+      when Integer, Float then value.to_s
+      when TrueClass then "TRUE"
+      when FalseClass then "FALSE"
+      else Greptime::Connection.quote(value.to_s)
+      end
     end
 
     def raw_time_predicate(quoted_column, segments)

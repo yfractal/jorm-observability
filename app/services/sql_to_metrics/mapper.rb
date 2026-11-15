@@ -14,6 +14,7 @@ module SqlToMetrics
     end
 
     RANGE_OPS = %w[>= > <= <].freeze
+    FILTER_COMPARE_OPS = (%w[=] + RANGE_OPS).freeze
 
     def call
       select = select_stmt!
@@ -238,13 +239,13 @@ module SqlToMetrics
       elsif node.a_expr
         expr = node.a_expr
         op = expr.name.map { |n| n.string&.sval }.compact.join
-        return nil unless op == "="
+        return nil unless FILTER_COMPARE_OPS.include?(op)
 
         column = column_name_from_node(expr.lexpr)
         value = const_value(expr.rexpr)
         return nil unless column && !value.nil?
 
-        { column: column, op: "=", value: value }
+        { column: column, op: op, value: value }
       end
     end
 

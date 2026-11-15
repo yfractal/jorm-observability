@@ -161,12 +161,22 @@ module TraceToMetrics
           case op
           when "IS NULL" then "#{quoted} IS NULL"
           when "IS NOT NULL" then "#{quoted} IS NOT NULL"
-          when "=" then "#{quoted} = #{connection.quote(value.to_s)}"
+          when "=", "<", "<=", ">", ">="
+            "#{quoted} #{op} #{quote_filter_value(connection, value)}"
           else "TRUE"
           end
       end
 
       parts.join(" AND ")
+    end
+
+    def quote_filter_value(connection, value)
+      case value
+      when Integer, Float then value.to_s
+      when TrueClass then "TRUE"
+      when FalseClass then "FALSE"
+      else connection.quote(value.to_s)
+      end
     end
 
     def parse_time(value)

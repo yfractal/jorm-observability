@@ -243,6 +243,24 @@ RSpec.describe SqlToMetrics::TableSpec do
       )
     end
 
+    it "includes comparison filters in the name" do
+      sql = <<~SQL
+        SELECT date_bin('1 minute', timestamp) AS time, COUNT(*) AS ok
+        FROM opentelemetry_traces
+        WHERE "span_attributes.http.response.status_code" < 400
+        GROUP BY time
+      SQL
+
+      result = described_class.call(sql)
+
+      expect(result[:filters]).to contain_exactly(
+        { column: "span_attributes.http.response.status_code", op: "<", value: 400 }
+      )
+      expect(result[:name]).to eq(
+        "opentelemetry_traces_1_minute_span_attributes_http_response_status_code_lt_400_counter"
+      )
+    end
+
     it "excludes time range filters from the derived name" do
       sql = <<~SQL
         SELECT

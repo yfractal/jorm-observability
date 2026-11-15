@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe SqlToMetrics::Mapper do
-  it "flags comparison filters as unsupported predicates" do
+  it "accepts comparison filters as supported predicates" do
     sql = <<~SQL
       SELECT date_bin('1 minute', timestamp) AS time, COUNT(*) AS c
       FROM opentelemetry_traces
@@ -10,8 +10,10 @@ RSpec.describe SqlToMetrics::Mapper do
     SQL
 
     result = described_class.call(sql)
-    expect(result[:unsupported_predicates]).to eq(true)
-    expect(result[:filters]).to eq([])
+    expect(result[:unsupported_predicates]).to eq(false)
+    expect(result[:filters]).to contain_exactly(
+      { column: "span_attributes.http.response.status_code", op: "<", value: 400 }
+    )
   end
 
   it "skips Grafana All-service tautology OR and keeps other filters" do

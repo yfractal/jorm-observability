@@ -4,7 +4,10 @@ RSpec.describe SqlToMetrics::EnsureMetric, :no_transaction do
   after do
     drop_metric_tables(
       "opentelemetry_traces_1_minute_parent_span_id_is_null_counter",
-      "opentelemetry_traces_parent_span_id_is_null_counter"
+      "opentelemetry_traces_parent_span_id_is_null_counter",
+      "opentelemetry_traces_1_minute_span_kind_span_kind_server_" \
+      "span_attributes_http_response_status_code_is_not_null_" \
+      "span_attributes_http_response_status_code_lt_400_counter"
     )
   end
 
@@ -68,12 +71,34 @@ RSpec.describe SqlToMetrics::EnsureMetric, :no_transaction do
     sql = <<~SQL
       SELECT date_bin('1 minute', timestamp) AS time, COUNT(*) AS c
       FROM opentelemetry_traces
-      WHERE "span_attributes.http.response.status_code" < 400
+      WHERE span_status_code IS NULL OR span_status_code != 'STATUS_CODE_ERROR'
       GROUP BY time
     SQL
 
     result = described_class.call(sql)
     expect(result.created).to eq(false)
     expect(result.metric_name).to be_nil
+  end
+
+  it "creates a metric for status_code comparison filters" do
+    sql = <<~SQL
+      SELECT date_bin('1 minute', timestamp) AS time, COUNT(*) AS ok
+      FROM opentelemetry_traces
+      WHERE span_kind = 'SPAN_KIND_SERVER'
+        AND "span_attributes.http.response.status_code" IS NOT NULL
+        AND "span_attributes.http.response.status_code" < 400
+      GROUP BY time
+    SQL
+
+    expect {
+      @result = described_class.call(sql)
+    }.to have_enqueued_job(TraceToMetrics::BackfillJob)
+
+    expect(@result.created).to eq(true)
+    expect(@result.metric_name).to eq(
+      "opentelemetry_traces_1_minute_span_kind_span_kind_server_" \
+      "span_attributes_http_response_status_code_is_not_null_" \
+      "span_attributes_http_response_status_code_lt_400_counter"
+    )
   end
 end

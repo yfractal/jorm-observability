@@ -80,13 +80,22 @@ module SqlToMetrics
 
     def filter_slug(filter)
       column = TraceToMetric.sanitize_dimension(filter[:column])
+      value_slug = TraceToMetric.sanitize_dimension(filter[:value])
       case filter[:op]
       when "IS NULL"
         "#{column}_is_null"
       when "IS NOT NULL"
         "#{column}_is_not_null"
       when "="
-        "#{column}_#{TraceToMetric.sanitize_dimension(filter[:value])}"
+        "#{column}_#{value_slug}"
+      when "<"
+        "#{column}_lt_#{value_slug}"
+      when "<="
+        "#{column}_lte_#{value_slug}"
+      when ">"
+        "#{column}_gt_#{value_slug}"
+      when ">="
+        "#{column}_gte_#{value_slug}"
       else
         column
       end

@@ -239,9 +239,26 @@ class TraceToMetric < ApplicationRecord
       !(actual.nil? || actual == "")
     when "="
       actual.to_s == expected.to_s
+    when "<", "<=", ">", ">="
+      compare_filter_values?(actual, expected, op)
     else
       false
     end
+  end
+
+  def compare_filter_values?(actual, expected, op)
+    return false if actual.nil? || actual == ""
+
+    left = Float(actual)
+    right = Float(expected)
+    case op
+    when "<" then left < right
+    when "<=" then left <= right
+    when ">" then left > right
+    when ">=" then left >= right
+    end
+  rescue ArgumentError, TypeError
+    false
   end
 
   def trace_filter_value(trace, column)
