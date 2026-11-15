@@ -47,7 +47,7 @@ curl -s http://127.0.0.1:3000/api/v1/sql \
 
 Response shape: `{ "data": [ ...rows ], "sql": "...", "used_metric": bool, "metric_name": ... }`.
 
-Supported `COUNT` queries also create a counter metric (when every `WHERE` predicate is `=`, `IS NULL`, or `IS NOT NULL`), store a backfill watermark on `trace_to_metrics`, and enqueue `TraceToMetrics::BackfillJob` for existing spans. Live `OpentelemetryTraceCreatedJob` writes only spans after that watermark.
+Supported `COUNT` queries also create a counter metric (when every `WHERE` predicate is `=`, comparisons, `IS NULL`, `IS NOT NULL`, or `(col IS NULL OR col != value)`), store a backfill watermark on `trace_to_metrics`, and enqueue `TraceToMetrics::BackfillJob` for existing spans. Live `OpentelemetryTraceCreatedJob` writes only spans after that watermark.
 
 Verify dashboard counters after backfill with `bin/rails runner script/check_counter_metric_backfill.rb` (run `bin/jobs` so backfill jobs execute).
 

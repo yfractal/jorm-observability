@@ -163,6 +163,8 @@ module TraceToMetrics
           when "IS NOT NULL" then "#{quoted} IS NOT NULL"
           when "=", "<", "<=", ">", ">="
             "#{quoted} #{op} #{quote_filter_value(connection, value)}"
+          when SqlToMetrics::Mapper::NULL_OR_NOT_EQUAL_OP
+            "(#{quoted} IS NULL OR #{quoted} != #{quote_filter_value(connection, value)})"
           else "TRUE"
           end
       end

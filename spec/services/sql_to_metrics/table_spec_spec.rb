@@ -261,6 +261,28 @@ RSpec.describe SqlToMetrics::TableSpec do
       )
     end
 
+    it "includes IS NULL OR != filters in the name" do
+      sql = <<~SQL
+        SELECT date_bin('1 minute', timestamp) AS time, COUNT(*) AS succeeded
+        FROM opentelemetry_traces
+        WHERE span_status_code IS NULL OR span_status_code != 'STATUS_CODE_ERROR'
+        GROUP BY time
+      SQL
+
+      result = described_class.call(sql)
+
+      expect(result[:filters]).to contain_exactly(
+        {
+          column: "span_status_code",
+          op: SqlToMetrics::Mapper::NULL_OR_NOT_EQUAL_OP,
+          value: "STATUS_CODE_ERROR"
+        }
+      )
+      expect(result[:name]).to eq(
+        "opentelemetry_traces_1_minute_span_status_code_is_null_or_ne_status_code_error_counter"
+      )
+    end
+
     it "excludes time range filters from the derived name" do
       sql = <<~SQL
         SELECT

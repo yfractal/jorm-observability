@@ -15,6 +15,9 @@ module SqlToMetrics
 
     RANGE_OPS = %w[>= > <= <].freeze
     FILTER_COMPARE_OPS = (%w[=] + RANGE_OPS).freeze
+    NOT_EQUAL_OPS = %w[!= <>].freeze
+    # Dashboard "succeeded" pattern: (col IS NULL OR col != 'ERROR')
+    NULL_OR_NOT_EQUAL_OP = "IS NULL OR !=".freeze
 
     def call
       select = select_stmt!
@@ -229,6 +232,10 @@ module SqlToMetrics
     end
 
     def classify_filter(node)
+      if (null_or_ne = classify_null_or_not_equal(node))
+        return null_or_ne
+      end
+
       if node.null_test
         test = node.null_test
         column = column_name_from_node(test.arg)
@@ -247,6 +254,43 @@ module SqlToMetrics
 
         { column: column, op: op, value: value }
       end
+    end
+
+    # (col IS NULL OR col != value) / (col != value OR col IS NULL)
+    def classify_null_or_not_equal(node)
+      return nil unless node.bool_expr && node.bool_expr.boolop == :OR_EXPR
+
+      args = Array(node.bool_expr.args)
+      return nil unless args.size == 2
+
+      null_side = args.find { |arg| is_null_test?(arg) }
+      ne_side = args.find { |arg| not_equal_expr?(arg) }
+      return nil unless null_side && ne_side
+
+      null_column = column_name_from_node(null_side.null_test.arg)
+      ne_column, ne_value = not_equal_column_and_value(ne_side)
+      return nil if null_column.nil? || ne_column.nil? || ne_value.nil?
+      return nil unless null_column == ne_column
+
+      { column: null_column, op: NULL_OR_NOT_EQUAL_OP, value: ne_value }
+    end
+
+    def is_null_test?(node)
+      node.null_test&.nulltesttype == :IS_NULL
+    end
+
+    def not_equal_expr?(node)
+      return false unless node.a_expr
+
+      op = node.a_expr.name.map { |n| n.string&.sval }.compact.join
+      NOT_EQUAL_OPS.include?(op)
+    end
+
+    def not_equal_column_and_value(node)
+      expr = node.a_expr
+      column = column_name_from_node(expr.lexpr)
+      value = const_value(expr.rexpr)
+      [ column, value ]
     end
 
     def classify_time_bound(node, time_column)

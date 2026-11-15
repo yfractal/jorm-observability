@@ -16,6 +16,27 @@ RSpec.describe SqlToMetrics::Mapper do
     )
   end
 
+  it "accepts (col IS NULL OR col != value) as a supported filter" do
+    sql = <<~SQL
+      SELECT date_bin('1 minute', timestamp) AS time, COUNT(*) AS succeeded
+      FROM opentelemetry_traces
+      WHERE scope_name = 'OpenTelemetry::Instrumentation::ActiveJob'
+        AND (span_status_code IS NULL OR span_status_code != 'STATUS_CODE_ERROR')
+      GROUP BY time
+    SQL
+
+    result = described_class.call(sql)
+    expect(result[:unsupported_predicates]).to eq(false)
+    expect(result[:filters]).to contain_exactly(
+      { column: "scope_name", op: "=", value: "OpenTelemetry::Instrumentation::ActiveJob" },
+      {
+        column: "span_status_code",
+        op: SqlToMetrics::Mapper::NULL_OR_NOT_EQUAL_OP,
+        value: "STATUS_CODE_ERROR"
+      }
+    )
+  end
+
   it "skips Grafana All-service tautology OR and keeps other filters" do
     sql = <<~SQL
       SELECT date_bin('1 minute', timestamp) AS time, COUNT(*) AS c

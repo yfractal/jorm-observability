@@ -71,13 +71,45 @@ RSpec.describe SqlToMetrics::EnsureMetric, :no_transaction do
     sql = <<~SQL
       SELECT date_bin('1 minute', timestamp) AS time, COUNT(*) AS c
       FROM opentelemetry_traces
-      WHERE span_status_code IS NULL OR span_status_code != 'STATUS_CODE_ERROR'
+      WHERE span_status_code IN ('STATUS_CODE_ERROR', 'STATUS_CODE_OK')
       GROUP BY time
     SQL
 
     result = described_class.call(sql)
     expect(result.created).to eq(false)
     expect(result.metric_name).to be_nil
+  end
+
+  it "creates a metric for (IS NULL OR !=) succeeded filters" do
+    metric_name =
+      "opentelemetry_traces_1_minute_scope_name_opentelemetry_instrumentation_activejob_" \
+      "span_status_code_is_null_or_ne_status_code_error_counter"
+    drop_metric_tables(metric_name)
+
+    sql = <<~SQL
+      SELECT date_bin('1 minute', timestamp) AS time, COUNT(*) AS succeeded
+      FROM opentelemetry_traces
+      WHERE scope_name = 'OpenTelemetry::Instrumentation::ActiveJob'
+        AND (span_status_code IS NULL OR span_status_code != 'STATUS_CODE_ERROR')
+      GROUP BY time
+    SQL
+
+    expect {
+      @result = described_class.call(sql)
+    }.to have_enqueued_job(TraceToMetrics::BackfillJob)
+
+    expect(@result.created).to eq(true)
+    expect(@result.metric_name).to eq(metric_name)
+    definition = TraceToMetric.find(metric_name)
+    expect(definition.filters).to include(
+      a_hash_including(
+        "column" => "span_status_code",
+        "op" => SqlToMetrics::Mapper::NULL_OR_NOT_EQUAL_OP,
+        "value" => "STATUS_CODE_ERROR"
+      )
+    )
+  ensure
+    drop_metric_tables(metric_name)
   end
 
   it "creates a metric for status_code comparison filters" do

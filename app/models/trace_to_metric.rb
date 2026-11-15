@@ -241,6 +241,8 @@ class TraceToMetric < ApplicationRecord
       actual.to_s == expected.to_s
     when "<", "<=", ">", ">="
       compare_filter_values?(actual, expected, op)
+    when SqlToMetrics::Mapper::NULL_OR_NOT_EQUAL_OP
+      actual.nil? || actual == "" || actual.to_s != expected.to_s
     else
       false
     end

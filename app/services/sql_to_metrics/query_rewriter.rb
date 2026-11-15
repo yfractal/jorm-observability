@@ -280,6 +280,8 @@ module SqlToMetrics
           "#{col} IS NOT NULL"
         when "=", "<", "<=", ">", ">="
           "#{col} #{filter[:op]} #{quote_filter_value(filter[:value])}"
+        when Mapper::NULL_OR_NOT_EQUAL_OP
+          "(#{col} IS NULL OR #{col} != #{quote_filter_value(filter[:value])})"
         end
       end
       return nil if parts.empty?

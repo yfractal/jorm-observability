@@ -96,6 +96,8 @@ module SqlToMetrics
         "#{column}_gt_#{value_slug}"
       when ">="
         "#{column}_gte_#{value_slug}"
+      when Mapper::NULL_OR_NOT_EQUAL_OP
+        "#{column}_is_null_or_ne_#{value_slug}"
       else
         column
       end
