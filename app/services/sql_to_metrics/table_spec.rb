@@ -17,20 +17,27 @@ module SqlToMetrics
       distinct_column = extract_distinct_column(mapped[:res_targets])
       time_bucket = mapped[:time_bucket]
       filters = Array(mapped[:filters])
+      # Name keeps the query's date_bin interval only — bare COUNT names omit it.
+      name_interval = time_bucket&.dig(:interval)
       name = derive_name(
         source_table: mapped[:source_table],
-        bucket_interval: time_bucket&.dig(:interval),
+        bucket_interval: name_interval,
         filters: filters,
         distinct_column: distinct_column
       )
       validate_name!(name)
 
+      # Bare COUNT still materializes into minute buckets (BackfillJob default).
+      bucket_interval = name_interval.presence || "1 minute"
+      bucket_column = time_bucket&.dig(:column).presence || "timestamp"
+
       {
         name: name,
         metric_type: "counter",
         source_table: mapped[:source_table],
-        bucket_interval: time_bucket&.dig(:interval),
-        bucket_column: time_bucket&.dig(:column),
+        bucket_interval: bucket_interval,
+        bucket_column: bucket_column,
+        time_bucketed: time_bucket.present?,
         dimensions: dimensions,
         distinct_column: distinct_column,
         filters: filters,

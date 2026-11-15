@@ -100,8 +100,10 @@ RSpec.describe SqlToMetrics::TableSpec do
 
       result = described_class.call(sql)
 
-      expect(result[:bucket_interval]).to be_nil
-      expect(result[:bucket_column]).to be_nil
+      # Materializes as 1-minute buckets, but the name omits the interval.
+      expect(result[:bucket_interval]).to eq("1 minute")
+      expect(result[:bucket_column]).to eq("timestamp")
+      expect(result[:time_bucketed]).to eq(false)
       expect(result[:name]).to eq("opentelemetry_traces_parent_span_id_is_null_counter")
       expect(result[:filters]).to eq([ { column: "parent_span_id", op: "IS NULL" } ])
       expect(result[:columns]).to include(
@@ -162,8 +164,9 @@ RSpec.describe SqlToMetrics::TableSpec do
         result = described_class.call(sql)
 
         expect(result[:dimensions]).to eq([ "service_name" ])
-        expect(result[:bucket_interval]).to be_nil
-        expect(result[:bucket_column]).to be_nil
+        expect(result[:bucket_interval]).to eq("1 minute")
+        expect(result[:bucket_column]).to eq("timestamp")
+        expect(result[:time_bucketed]).to eq(false)
         expect(result[:primary_key]).to eq([ "service_name" ])
       end
 

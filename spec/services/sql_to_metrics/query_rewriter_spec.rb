@@ -138,5 +138,49 @@ RSpec.describe SqlToMetrics::QueryRewriter, :no_transaction do
       expect(result.used_metric).to eq(false)
       expect(result.sql).to eq(sql)
     end
+
+    it "rewrites a bare COUNT(*) into SUM(value) when the metric has coverage" do
+      bare_name = "opentelemetry_traces_parent_span_id_is_null_counter"
+      drop_metric_tables(bare_name)
+      TraceToMetrics::TableManager.create!(
+        Struct.new(:name, :dimensions, keyword_init: true) do
+          def dimension_columns
+            []
+          end
+        end.new(name: bare_name, dimensions: [])
+      )
+      table = Greptime::Connection.quote_table_name(bare_name)
+      (0..5).each do |m|
+        Greptime::Connection.exec_query(
+          ActiveRecord::Base.sanitize_sql_array([
+            "INSERT INTO #{table} (bucket, value) VALUES (?, ?)",
+            Time.utc(2026, 1, 1, 10, m, 0),
+            10
+          ])
+        )
+      end
+
+      sql = <<~SQL
+        SELECT COUNT(*) AS value
+        FROM opentelemetry_traces
+        WHERE parent_span_id IS NULL
+          AND timestamp >= '2026-01-01 10:00:00'
+          AND timestamp < '2026-01-01 10:06:00'
+      SQL
+
+      result = described_class.call(sql)
+
+      expect(result.used_metric).to eq(true)
+      expect(result.metric_name).to eq(bare_name)
+      expect(result.sql).to start_with("SELECT SUM(value) AS \"value\"")
+      expect(result.sql).to include(table)
+      expect(result.sql).to include("UNION ALL")
+      expect(result.segments[:metric]).to eq(
+        from: Time.utc(2026, 1, 1, 10, 1, 0),
+        to: Time.utc(2026, 1, 1, 10, 5, 0)
+      )
+    ensure
+      drop_metric_tables(bare_name)
+    end
   end
 end

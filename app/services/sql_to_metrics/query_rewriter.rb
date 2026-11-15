@@ -173,8 +173,6 @@ module SqlToMetrics
       dimensions = Array(spec[:dimensions])
       dim_cols = dimensions.map { |d| TraceToMetric.sanitize_dimension(d) }
       quoted_dims = dim_cols.map { |c| connection.quote_column_name(c) }
-
-      time_alias = mapped[:time_bucket]&.dig(:alias).presence || "time"
       count_alias = count_alias_for(mapped)
 
       metric_sql = build_metric_subquery(spec, dim_cols, quoted_dims, segments[:metric])
@@ -187,6 +185,17 @@ module SqlToMetrics
           metric_sql
         end
 
+      # Bare COUNT(*) queries have no date_bin — collapse buckets to a single SUM.
+      unless spec[:time_bucketed]
+        return <<~SQL.squish
+          SELECT SUM(value) AS #{connection.quote_column_name(count_alias)}
+          FROM (
+            #{inner}
+          ) AS metric_query
+        SQL
+      end
+
+      time_alias = mapped[:time_bucket]&.dig(:alias).presence || "time"
       outer_select = [
         "date_bin(#{connection.quote(interval)}, bucket) AS #{connection.quote_column_name(time_alias)}",
         *quoted_dims,
