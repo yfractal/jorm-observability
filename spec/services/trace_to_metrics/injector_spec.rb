@@ -193,7 +193,7 @@ RSpec.describe TraceToMetrics::Injector, :no_transaction do
 
   it "skips unsupported metric types with a warning" do
     definition = create_definition!
-    definition.metric_type = "histogram"
+    definition.metric_type = "summary"
     trace = create_trace!
 
     expect(Rails.logger).to receive(:warn).with(/unsupported metric_type/)

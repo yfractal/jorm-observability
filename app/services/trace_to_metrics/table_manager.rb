@@ -4,6 +4,7 @@ module TraceToMetrics
 
     def self.create!(definition)
       return Gauge::TableManager.create!(definition) if gauge_definition?(definition)
+      return HistogramMetrics::Table.create!(definition) if histogram_definition?(definition)
 
       new(definition).create!
     end
@@ -18,6 +19,11 @@ module TraceToMetrics
       definition.respond_to?(:metric_type) && definition.metric_type == "gauge"
     end
     private_class_method :gauge_definition?
+
+    def self.histogram_definition?(definition)
+      definition.respond_to?(:metric_type) && definition.metric_type == "histogram"
+    end
+    private_class_method :histogram_definition?
 
     def initialize(definition)
       @definition = definition

@@ -1,6 +1,6 @@
 # jorm-observability
 
-Rails app that ingests OTLP traces and derives counter and gauge metrics.
+Rails app that ingests OTLP traces and derives counter, gauge, and histogram metrics.
 
 ## Databases
 
@@ -56,6 +56,7 @@ Verify dashboard metrics after backfill with `bin/jobs` running:
 ```bash
 bin/rails runner script/check_counter_metric_backfill.rb
 bin/rails runner script/check_gauge_metric_backfill.rb
+bin/rails runner script/check_histogram_metric_backfill.rb
 ```
 
 Non-SELECT statements are rejected (`422`). There is no auth on this endpoint yet — do not expose it publicly without adding authentication.
@@ -81,6 +82,10 @@ SqlToMetrics::HybridQuery.call(sql, use_metric: false)
 ```
 
 Metric tables are derived with `SqlToMetrics::TableSpec` (see `script/create_scope_name_minute_metrics.rb`). Coverage is `MIN(bucket)` .. `min(MAX(bucket)+interval, floor(now))` so only the current open bucket is read from raw data.
+
+## Histogram metrics
+
+`approx_percentile_cont(col, q)` queries (the dashboard's p99/p95/p50 panels) are served from histogram metrics: a `BINARY` UDDSketch column per `(bucket, dimensions)`, backfilled by the same `TraceToMetrics::BackfillJob`, appended live by `OpentelemetryTraceCreatedJob`, and read as metric segment + raw segment, merged. Results are approximate (about 1% sketch error). All histogram code lives under `app/services/histogram_metrics/`. Verify with `bin/rails runner script/check_histogram_metric_backfill.rb` (seed ActiveJob durations first with `script/seed_histogram_metric_traces.rb`). Existing databases need `bin/rails greptime:prepare` to add `trace_to_metrics.value_column`.
 
 ## Tests
 

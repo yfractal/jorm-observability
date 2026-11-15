@@ -12,7 +12,8 @@ module Greptime
       "backfill_through_timestamp" => "TIMESTAMP",
       "backfill_through_trace_id" => "STRING",
       "backfill_through_span_id" => "STRING",
-      "backfill_finished_at" => "TIMESTAMP"
+      "backfill_finished_at" => "TIMESTAMP",
+      "value_column" => "STRING"
     }.freeze
 
     module_function

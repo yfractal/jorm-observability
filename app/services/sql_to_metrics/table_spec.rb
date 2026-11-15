@@ -48,6 +48,11 @@ module SqlToMetrics
       }
     end
 
+    # Shared with HistogramMetrics::Spec so filter slugs in metric names stay identical.
+    def slug_for_filter(filter)
+      filter_slug(filter)
+    end
+
     private
 
     def validate!(mapped)

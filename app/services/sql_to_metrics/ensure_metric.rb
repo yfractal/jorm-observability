@@ -3,7 +3,8 @@ module SqlToMetrics
     Result = Struct.new(:metric_name, :created, :enqueued_backfill, keyword_init: true)
 
     def self.call(sql)
-      new(sql).call
+      klass = HistogramMetrics.histogram_sql?(sql) ? HistogramMetrics::EnsureMetric : self
+      klass.new(sql).call
     end
 
     def initialize(sql)
@@ -13,7 +14,7 @@ module SqlToMetrics
     def call
       return Gauge::EnsureMetric.call(@sql) if Gauge::Mapper.gauge_sql?(@sql)
 
-      spec = TableSpec.call(@sql)
+      spec = build_spec
       existing = TraceToMetric.find_by(name: spec[:name])
       if existing
         return Result.new(metric_name: existing.name, created: false, enqueued_backfill: false)
@@ -29,6 +30,10 @@ module SqlToMetrics
     end
 
     private
+
+    def build_spec
+      TableSpec.call(@sql)
+    end
 
     def create_definition!(spec)
       TraceToMetric.create!(

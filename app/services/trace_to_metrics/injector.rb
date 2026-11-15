@@ -47,6 +47,8 @@ module TraceToMetrics
         append_counter!
       when "gauge"
         Gauge::Injector.call(@trace, @definition)
+      when "histogram"
+        HistogramMetrics::Injector.new(@trace, @definition).call
       else
         Rails.logger.warn(
           "TraceToMetrics::Injector skipping unsupported metric_type=" \

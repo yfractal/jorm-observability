@@ -131,6 +131,8 @@ module TraceToMetrics
         "timestamp < #{connection.quote(to.utc.strftime('%Y-%m-%d %H:%M:%S.%6N'))}"
       ].join(" AND ")
 
+      return HistogramMetrics::Backfill.insert_chunk!(definition, where_sql: where) if definition.metric_type == "histogram"
+
       connection.execute(<<~SQL.squish)
         INSERT INTO #{table} (#{insert_cols.join(', ')})
         SELECT #{select_list}

@@ -2,7 +2,7 @@ class TraceToMetric < ApplicationRecord
   self.primary_key = "name"
   self.record_timestamps = false
 
-  METRIC_TYPES = %w[counter gauge].freeze
+METRIC_TYPES = %w[counter gauge histogram].freeze
   NAME_FORMAT = /\A[a-z][a-z0-9_]*\z/
   QUERY_SPAN_NAME = "query"
   STABLE_GREPTIME_TS = Time.utc(1970, 1, 1)
@@ -202,8 +202,8 @@ class TraceToMetric < ApplicationRecord
       INSERT INTO #{table}
         ("name", "span_name", "metric_type", "dimensions", "filters", "bucket_interval",
          "backfill_through_timestamp", "backfill_through_trace_id", "backfill_through_span_id",
-         "backfill_finished_at", "version", "greptime_ts")
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         "backfill_finished_at", "version", "greptime_ts", "value_column")
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     SQL
 
     connection.exec_query(
@@ -221,7 +221,8 @@ class TraceToMetric < ApplicationRecord
         backfill_through_span_id,
         backfill_finished_at,
         version.to_i,
-        greptime_ts
+        greptime_ts,
+        value_column
       ]
     )
   end

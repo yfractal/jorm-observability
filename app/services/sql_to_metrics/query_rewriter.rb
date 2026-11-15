@@ -3,6 +3,8 @@ module SqlToMetrics
     Result = Struct.new(:sql, :used_metric, :segments, :metric_name, keyword_init: true)
 
     def self.call(sql)
+      return HistogramMetrics::QueryRewriter.call(sql) if HistogramMetrics.histogram_sql?(sql)
+
       new(sql).call
     end
 
