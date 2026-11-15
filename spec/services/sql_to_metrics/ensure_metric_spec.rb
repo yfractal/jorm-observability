@@ -81,6 +81,12 @@ RSpec.describe SqlToMetrics::EnsureMetric, :no_transaction do
   end
 
   it "creates a metric for status_code comparison filters" do
+    ok_name =
+      "opentelemetry_traces_1_minute_span_kind_span_kind_server_" \
+      "span_attributes_http_response_status_code_is_not_null_" \
+      "span_attributes_http_response_status_code_lt_400_counter"
+    drop_metric_tables(ok_name)
+
     sql = <<~SQL
       SELECT date_bin('1 minute', timestamp) AS time, COUNT(*) AS ok
       FROM opentelemetry_traces

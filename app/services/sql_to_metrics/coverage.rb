@@ -1,16 +1,18 @@
 module SqlToMetrics
   class Coverage
-    def self.call(metric_name, bucket_interval:)
-      new(metric_name, bucket_interval: bucket_interval).call
+    def self.call(metric_name, bucket_interval:, now: Time.now.utc)
+      new(metric_name, bucket_interval: bucket_interval, now: now).call
     end
 
-    def initialize(metric_name, bucket_interval:)
+    def initialize(metric_name, bucket_interval:, now: Time.now.utc)
       @metric_name = metric_name
       @bucket_interval = bucket_interval
+      @now = now
     end
 
-    # Returns a half-open coverage window [from, to) of complete buckets only.
-    # The first and last metric buckets are treated as possibly partial and excluded.
+    # Returns a half-open coverage window [from, to) of complete buckets.
+    # Historical buckets are trusted; only the current open bucket (floor(now))
+    # is treated as possibly partial and excluded.
     def call
       return nil unless Greptime::Connection.table_exists?(@metric_name)
 
@@ -26,8 +28,9 @@ module SqlToMetrics
       max_bucket = parse_time(row["max_bucket"] || row.values[1])
       return nil if min_bucket.nil? || max_bucket.nil?
 
-      from = Interval.advance(min_bucket, @bucket_interval)
-      to = max_bucket
+      open_bucket = Interval.floor_bucket(@now.utc, @bucket_interval)
+      from = min_bucket
+      to = [ Interval.advance(max_bucket, @bucket_interval), open_bucket ].min
       return nil unless from < to
 
       { from: from, to: to }

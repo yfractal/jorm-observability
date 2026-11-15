@@ -3,6 +3,7 @@ require "rails_helper"
 RSpec.describe SqlToMetrics::Coverage, :no_transaction do
   let(:metric_name) { "coverage_test_1_minute_counter" }
   let(:interval) { "1 minute" }
+  let(:now) { Time.utc(2026, 1, 1, 12, 0, 0) }
 
   def definition
     Struct.new(:name, :dimensions, keyword_init: true) do
@@ -29,31 +30,57 @@ RSpec.describe SqlToMetrics::Coverage, :no_transaction do
   end
 
   it "returns nil when the metric table does not exist" do
-    expect(described_class.call("missing_metric_table", bucket_interval: interval)).to be_nil
+    expect(described_class.call("missing_metric_table", bucket_interval: interval, now: now)).to be_nil
   end
 
   it "returns nil when the metric table is empty" do
     TraceToMetrics::TableManager.create!(definition)
-    expect(described_class.call(metric_name, bucket_interval: interval)).to be_nil
+    expect(described_class.call(metric_name, bucket_interval: interval, now: now)).to be_nil
   end
 
-  it "returns nil when only one bucket exists (both edges excluded)" do
+  it "covers a single historical bucket" do
     TraceToMetrics::TableManager.create!(definition)
     insert_metric_row(bucket: Time.utc(2026, 1, 1, 10, 0, 0), scope_name: "a")
 
-    expect(described_class.call(metric_name, bucket_interval: interval)).to be_nil
+    coverage = described_class.call(metric_name, bucket_interval: interval, now: now)
+
+    expect(coverage).to eq(
+      from: Time.utc(2026, 1, 1, 10, 0, 0),
+      to: Time.utc(2026, 1, 1, 10, 1, 0)
+    )
   end
 
-  it "excludes the first and last buckets from coverage" do
+  it "excludes the current open bucket when it is the max" do
+    TraceToMetrics::TableManager.create!(definition)
+    insert_metric_row(bucket: Time.utc(2026, 1, 1, 10, 0, 0), scope_name: "a")
+    insert_metric_row(bucket: Time.utc(2026, 1, 1, 10, 1, 0), scope_name: "a")
+    insert_metric_row(bucket: Time.utc(2026, 1, 1, 12, 0, 0), scope_name: "a")
+
+    coverage = described_class.call(metric_name, bucket_interval: interval, now: now)
+
+    expect(coverage).to eq(
+      from: Time.utc(2026, 1, 1, 10, 0, 0),
+      to: Time.utc(2026, 1, 1, 12, 0, 0)
+    )
+  end
+
+  it "returns nil when the only bucket is the current open bucket" do
+    TraceToMetrics::TableManager.create!(definition)
+    insert_metric_row(bucket: Time.utc(2026, 1, 1, 12, 0, 0), scope_name: "a")
+
+    expect(described_class.call(metric_name, bucket_interval: interval, now: now)).to be_nil
+  end
+
+  it "covers every closed historical bucket" do
     TraceToMetrics::TableManager.create!(definition)
     insert_metric_row(bucket: Time.utc(2026, 1, 1, 10, 0, 0), scope_name: "a")
     insert_metric_row(bucket: Time.utc(2026, 1, 1, 10, 1, 0), scope_name: "a")
     insert_metric_row(bucket: Time.utc(2026, 1, 1, 10, 2, 0), scope_name: "a")
     insert_metric_row(bucket: Time.utc(2026, 1, 1, 10, 3, 0), scope_name: "a")
 
-    coverage = described_class.call(metric_name, bucket_interval: interval)
+    coverage = described_class.call(metric_name, bucket_interval: interval, now: now)
 
-    expect(coverage[:from]).to eq(Time.utc(2026, 1, 1, 10, 1, 0))
-    expect(coverage[:to]).to eq(Time.utc(2026, 1, 1, 10, 3, 0))
+    expect(coverage[:from]).to eq(Time.utc(2026, 1, 1, 10, 0, 0))
+    expect(coverage[:to]).to eq(Time.utc(2026, 1, 1, 10, 4, 0))
   end
 end

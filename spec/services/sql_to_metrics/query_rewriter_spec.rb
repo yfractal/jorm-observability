@@ -90,7 +90,7 @@ RSpec.describe SqlToMetrics::QueryRewriter, :no_transaction do
       expect(result.sql).to eq(sql)
     end
 
-    it "rewrites to a UNION ALL when the metric covers part of the range" do
+    it "rewrites to the metric table when historical buckets cover the range" do
       seed_metric_coverage!
 
       sql = <<~SQL
@@ -104,12 +104,37 @@ RSpec.describe SqlToMetrics::QueryRewriter, :no_transaction do
 
       expect(result.used_metric).to eq(true)
       expect(result.metric_name).to eq(metric_name)
-      expect(result.sql).to include("UNION ALL")
       expect(result.sql).to include(Greptime::Connection.quote_table_name(metric_name))
+      expect(result.sql).not_to include("UNION ALL")
+      # Historical buckets 10:00..10:05 are complete through 10:06.
+      expect(result.segments[:metric]).to eq(
+        from: Time.utc(2026, 1, 1, 10, 0, 0),
+        to: Time.utc(2026, 1, 1, 10, 6, 0)
+      )
+      expect(result.segments[:raw]).to eq([])
+    end
+
+    it "rewrites with UNION ALL when the query extends past metric coverage" do
+      seed_metric_coverage!
+
+      sql = <<~SQL
+        SELECT date_bin('1 minute', timestamp) AS time, scope_name, COUNT(*) AS count
+        FROM opentelemetry_traces
+        WHERE timestamp >= '2026-01-01 10:00:00' AND timestamp < '2026-01-01 10:08:00'
+        GROUP BY scope_name, time
+      SQL
+
+      result = described_class.call(sql)
+
+      expect(result.used_metric).to eq(true)
+      expect(result.sql).to include("UNION ALL")
       expect(result.sql).to include("opentelemetry_traces")
       expect(result.segments[:metric]).to eq(
-        from: Time.utc(2026, 1, 1, 10, 1, 0),
-        to: Time.utc(2026, 1, 1, 10, 5, 0)
+        from: Time.utc(2026, 1, 1, 10, 0, 0),
+        to: Time.utc(2026, 1, 1, 10, 6, 0)
+      )
+      expect(result.segments[:raw]).to contain_exactly(
+        { from: Time.utc(2026, 1, 1, 10, 6, 0), to: Time.utc(2026, 1, 1, 10, 8, 0) }
       )
     end
 
@@ -174,10 +199,9 @@ RSpec.describe SqlToMetrics::QueryRewriter, :no_transaction do
       expect(result.metric_name).to eq(bare_name)
       expect(result.sql).to start_with("SELECT SUM(value) AS \"value\"")
       expect(result.sql).to include(table)
-      expect(result.sql).to include("UNION ALL")
       expect(result.segments[:metric]).to eq(
-        from: Time.utc(2026, 1, 1, 10, 1, 0),
-        to: Time.utc(2026, 1, 1, 10, 5, 0)
+        from: Time.utc(2026, 1, 1, 10, 0, 0),
+        to: Time.utc(2026, 1, 1, 10, 6, 0)
       )
     ensure
       drop_metric_tables(bare_name)

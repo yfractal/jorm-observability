@@ -33,11 +33,15 @@ module Greptime
       raw.quote(value)
     end
 
+    def current_schema
+      ActiveRecord::Base.connection_db_config.configuration_hash[:database].to_s
+    end
+
     def table_exists?(table_name)
       result = exec_query(
-        "SELECT table_name FROM information_schema.tables WHERE table_name = ?",
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_name = ?",
         "Greptime table_exists?",
-        [ table_name.to_s ]
+        [ current_schema, table_name.to_s ]
       )
       result.any?
     rescue ActiveRecord::StatementInvalid
@@ -49,9 +53,10 @@ module Greptime
 
     def column_names(table_name)
       result = exec_query(
-        "SELECT column_name FROM information_schema.columns WHERE table_name = ? ORDER BY ordinal_position",
+        "SELECT column_name FROM information_schema.columns " \
+        "WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position",
         "Greptime columns",
-        [ table_name.to_s ]
+        [ current_schema, table_name.to_s ]
       )
       result.map { |row| row["column_name"] || row.values.first }
     rescue ActiveRecord::StatementInvalid

@@ -150,14 +150,13 @@ RSpec.describe SqlToMetrics::HybridQuery, :no_transaction do
     expect(result.sql).to include(Greptime::Connection.quote_table_name(metric_name))
     expect(result.sql).to include("opentelemetry_traces")
 
-    # Coverage excludes first/last backfilled buckets: [10:01, 10:05)
+    # Historical backfilled buckets are complete through max+interval: [10:00, 10:06)
     expect(result.segments[:metric]).to eq(
-      from: Time.utc(2026, 1, 1, 10, 1, 0),
-      to: Time.utc(2026, 1, 1, 10, 5, 0)
+      from: Time.utc(2026, 1, 1, 10, 0, 0),
+      to: Time.utc(2026, 1, 1, 10, 6, 0)
     )
     expect(result.segments[:raw]).to contain_exactly(
-      { from: Time.utc(2026, 1, 1, 10, 0, 0), to: Time.utc(2026, 1, 1, 10, 1, 0) },
-      { from: Time.utc(2026, 1, 1, 10, 5, 0), to: Time.utc(2026, 1, 1, 10, 8, 0) }
+      { from: Time.utc(2026, 1, 1, 10, 6, 0), to: Time.utc(2026, 1, 1, 10, 8, 0) }
     )
 
     expect(normalize(result.rows)).to eq(normalize(direct.rows))

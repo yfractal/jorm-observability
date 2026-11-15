@@ -73,7 +73,7 @@ result.used_metric  # true when a compatible metric table was used
 SqlToMetrics::HybridQuery.call(sql, use_metric: false)
 ```
 
-Metric tables are derived with `SqlToMetrics::TableSpec` (see `script/create_scope_name_minute_metrics.rb`). Coverage is `MIN(bucket)+interval` .. `MAX(bucket)` so the first and last buckets are always read from raw data.
+Metric tables are derived with `SqlToMetrics::TableSpec` (see `script/create_scope_name_minute_metrics.rb`). Coverage is `MIN(bucket)` .. `min(MAX(bucket)+interval, floor(now))` so only the current open bucket is read from raw data.
 
 ## Tests
 
