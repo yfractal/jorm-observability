@@ -42,15 +42,17 @@ module TraceToMetrics
     end
 
     def call
-      unless @definition.metric_type == "counter"
+      case @definition.metric_type
+      when "counter"
+        append_counter!
+      when "gauge"
+        Gauge::Injector.call(@trace, @definition)
+      else
         Rails.logger.warn(
           "TraceToMetrics::Injector skipping unsupported metric_type=" \
           "#{@definition.metric_type.inspect} for #{@definition.name}"
         )
-        return nil
       end
-
-      append_counter!
       nil
     end
 

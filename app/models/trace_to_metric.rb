@@ -2,7 +2,7 @@ class TraceToMetric < ApplicationRecord
   self.primary_key = "name"
   self.record_timestamps = false
 
-  METRIC_TYPES = %w[counter].freeze
+  METRIC_TYPES = %w[counter gauge].freeze
   NAME_FORMAT = /\A[a-z][a-z0-9_]*\z/
   QUERY_SPAN_NAME = "query"
   STABLE_GREPTIME_TS = Time.utc(1970, 1, 1)

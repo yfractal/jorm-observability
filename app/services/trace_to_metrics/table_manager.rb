@@ -3,12 +3,21 @@ module TraceToMetrics
     class Error < StandardError; end
 
     def self.create!(definition)
+      return Gauge::TableManager.create!(definition) if gauge_definition?(definition)
+
       new(definition).create!
     end
 
     def self.add_dimensions!(definition, new_dimensions)
+      return Gauge::TableManager.add_dimensions!(definition, new_dimensions) if gauge_definition?(definition)
+
       new(definition).add_dimensions!(new_dimensions)
     end
+
+    def self.gauge_definition?(definition)
+      definition.respond_to?(:metric_type) && definition.metric_type == "gauge"
+    end
+    private_class_method :gauge_definition?
 
     def initialize(definition)
       @definition = definition

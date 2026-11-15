@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Drop SQL-derived query counter metrics (tables + trace_to_metrics rows).
+# Drop SQL-derived query counter/gauge metrics (tables + trace_to_metrics rows).
 #
 #   bin/rails runner script/drop_query_metrics.rb
 
@@ -19,7 +19,8 @@ end
 def query_metric_table?(name)
   return false if name == "opentelemetry_traces" || name == "trace_to_metrics"
 
-  name.start_with?("#{QUERY_TABLE_PREFIX}_") && name.end_with?("_counter")
+  name.start_with?("#{QUERY_TABLE_PREFIX}_") &&
+    (name.end_with?("_counter") || name.end_with?("_gauge"))
 end
 
 names = TraceToMetric.query_metrics.pluck(:name)

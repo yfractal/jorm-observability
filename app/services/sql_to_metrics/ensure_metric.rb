@@ -11,6 +11,8 @@ module SqlToMetrics
     end
 
     def call
+      return Gauge::EnsureMetric.call(@sql) if Gauge::Mapper.gauge_sql?(@sql)
+
       spec = TableSpec.call(@sql)
       existing = TraceToMetric.find_by(name: spec[:name])
       if existing
@@ -48,11 +50,9 @@ module SqlToMetrics
       SQL
 
       if row
-        definition.update_columns(
-          backfill_through_timestamp: parse_time(row["timestamp"] || row.values[0]),
-          backfill_through_trace_id: (row["trace_id"] || row.values[1]).to_s,
-          backfill_through_span_id: (row["span_id"] || row.values[2]).to_s
-        )
+        # pg/Greptime may truncate sub-ms on read; bump 1ms and max ids so the
+        # latest span (and any peers in that truncated tick) stay in backfill.
+        definition.update_columns(Watermark.snapshot_from_row(row))
       else
         # No traces yet: watermark at epoch so every future span is after it.
         definition.update_columns(
@@ -60,14 +60,6 @@ module SqlToMetrics
           backfill_through_trace_id: "",
           backfill_through_span_id: ""
         )
-      end
-    end
-
-    def parse_time(value)
-      case value
-      when Time then value.utc
-      when DateTime then value.to_time.utc
-      else Time.parse(value.to_s).utc
       end
     end
   end

@@ -11,6 +11,8 @@ module SqlToMetrics
     end
 
     def call
+      return Gauge::QueryRewriter.call(@sql) if Gauge::Mapper.gauge_sql?(@sql)
+
       mapped = Mapper.call(@sql)
       spec = TableSpec.call(@sql)
 

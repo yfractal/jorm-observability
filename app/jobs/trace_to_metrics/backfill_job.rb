@@ -90,6 +90,15 @@ module TraceToMetrics
     end
 
     def insert_aggregated!(definition, from:, to:)
+      if definition.metric_type == "gauge"
+        return Gauge::Backfill.insert_aggregated!(
+          definition,
+          from: from,
+          to: to,
+          watermark_and_filters_sql: watermark_and_filters_sql(definition)
+        )
+      end
+
       connection = Greptime::Connection
       table = connection.quote_table_name(definition.name)
       source = connection.quote_table_name("opentelemetry_traces")
