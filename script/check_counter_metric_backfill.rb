@@ -26,7 +26,7 @@ SERVICE = "__all__"
 TIME_BUCKETS = ENV.fetch(
   "TIME_BUCKETS",
   "1 minute,5 minutes,10 minutes,30 minutes,1 hour"
-).split(",").map(&:strip).reject(&:empty).freeze
+).split(",").map(&:strip).reject(&:empty?).freeze
 
 SHARED = <<~SQL.squish
   timestamp >= '#{FROM_TS}'
