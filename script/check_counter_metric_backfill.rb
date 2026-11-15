@@ -114,6 +114,24 @@ def normalize_rows(rows)
   end
 end
 
+def format_values(rows)
+  rows = Array(rows)
+  return "[]" if rows.empty?
+
+  if rows.size == 1 && rows.first.key?("value")
+    return rows.first["value"].inspect
+  end
+
+  metric_keys = rows.first.keys - %w[time]
+  if metric_keys.size == 1
+    key = metric_keys.first
+    vals = rows.map { |r| r[key] }
+    return "#{key}=#{vals.inspect}"
+  end
+
+  rows.inspect
+end
+
 def span_count
   body = post_sql("SELECT COUNT(*) AS c FROM opentelemetry_traces")
   Array(body["data"]).dig(0, "c").to_i
@@ -228,11 +246,12 @@ QUERIES.each do |label, sql|
   body = post_sql(sql)
   before[label] = body
   puts format(
-    "before %-28s used_metric=%-5s metric=%s rows=%d",
+    "before %-28s used_metric=%-5s metric=%s rows=%d value=%s",
     label,
     body["used_metric"].inspect,
     body["metric_name"].inspect,
-    Array(body["data"]).size
+    Array(body["data"]).size,
+    format_values(body["data"])
   )
 end
 
@@ -245,11 +264,12 @@ QUERIES.each do |label, sql|
   right = normalize_rows(body["data"])
   ok = left == right
   puts format(
-    "after  %-28s used_metric=%-5s metric=%s rows=%d match=%s",
+    "after  %-28s used_metric=%-5s metric=%s rows=%d value=%s match=%s",
     label,
     body["used_metric"].inspect,
     body["metric_name"].inspect,
     Array(body["data"]).size,
+    format_values(body["data"]),
     ok
   )
   mismatches << label unless ok
