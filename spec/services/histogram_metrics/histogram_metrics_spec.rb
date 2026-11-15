@@ -29,10 +29,14 @@ RSpec.describe HistogramMetrics, :no_transaction do
     expect(described_class.histogram_sql?("not sql")).to eq(false)
   end
 
-  it "derives one metric for every quantile" do
+  it "derives one metric for every quantile and $per" do
     p50 = sql.sub("0.99", "0.50").sub("p99", "p50")
+    per_5 = sql.sub("1 minute", "5 minutes")
     expect(HistogramMetrics::Spec.call(p50)[:name]).to eq(metric_name)
-    expect(metric_name).to eq("opentelemetry_traces_1_minute_scope_name_db_duration_nano_histogram")
+    expect(HistogramMetrics::Spec.call(per_5)[:name]).to eq(metric_name)
+    expect(metric_name).to eq("opentelemetry_traces_scope_name_db_duration_nano_histogram")
+    expect(HistogramMetrics::Spec.call(sql)[:bucket_interval]).to eq("1 minute")
+    expect(HistogramMetrics::Spec.call(per_5)[:query_interval]).to eq("5 minutes")
     expect(HistogramMetrics::Spec.call(sql)[:outputs].last[:sql])
       .to eq("uddsketch_calc(0.99, uddsketch_merge(128, 0.01, sketch)) / 1e6")
   end
@@ -66,5 +70,10 @@ RSpec.describe HistogramMetrics, :no_transaction do
       expect(got["time"]).to eq(want["time"])
       expect(got["p99"]).to be_within(want["p99"] * 0.05 + 0.5).of(want["p99"])
     end
+
+    five = SqlToMetrics::HybridQuery.call(sql.sub("1 minute", "5 minutes"))
+    expect(five.used_metric).to eq(true)
+    expect(five.metric_name).to eq(metric_name)
+    expect(five.sql).to include("date_bin('5 minutes', bucket)")
   end
 end

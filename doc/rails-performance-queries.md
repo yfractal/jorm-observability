@@ -195,7 +195,7 @@ ORDER BY time
 
 ## Histogram
 
-Served from a histogram metric (verify with `bin/rails runner script/check_histogram_metric_backfill.rb`). Each panel runs the same statement three times, with quantile `0.99` (`p99`), `0.95` (`p95`), and `0.50` (`p50`).
+Served from a histogram metric (verify with `bin/rails runner script/check_histogram_metric_backfill.rb`). Each panel stores one 1-minute UDDSketch table shared by p99/p95/p50 and every `$per`. Each panel runs the same statement three times, with quantile `0.99` (`p99`), `0.95` (`p95`), and `0.50` (`p50`).
 
 ### Controller Action Performance — p99 / p95 / p50
 

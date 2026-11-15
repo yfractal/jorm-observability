@@ -5,10 +5,12 @@ module HistogramMetrics
   #          approx_percentile_cont(duration_nano, 0.99) / 1e6 AS p99
   #   FROM opentelemetry_traces WHERE ... GROUP BY time ORDER BY time
   #
-  # Quantiles are not part of the metric: p99/p95/p50 of one panel share a table.
-  # Filters, time range, dimensions and the time bucket come from SqlToMetrics::Mapper.
+  # Quantiles and $per are not part of the metric: p99/p95/p50 and every Grafana
+  # $per of one panel share a 1-minute sketch table. Filters, time range, and
+  # dimensions come from SqlToMetrics::Mapper.
   class Spec
     PERCENTILE_ALIAS = "approx_percentile_cont".freeze
+    STORAGE_INTERVAL = "1 minute"
 
     def self.call(sql)
       new(sql).call
@@ -29,15 +31,16 @@ module HistogramMetrics
       raise SqlToMetrics::UnsupportedError, "exactly one histogram value column is required" unless value_columns.size == 1
 
       time_bucket = mapped[:time_bucket]
-      name_interval = time_bucket&.dig(:interval)
       value_column = value_columns.first
       filters = Array(mapped[:filters])
+      query_interval = time_bucket&.dig(:interval).presence || STORAGE_INTERVAL
 
       {
-        name: derive_name(mapped[:source_table], name_interval, filters, value_column),
+        name: derive_name(mapped[:source_table], filters, value_column),
         metric_type: "histogram",
         source_table: mapped[:source_table],
-        bucket_interval: name_interval.presence || "1 minute",
+        bucket_interval: STORAGE_INTERVAL,
+        query_interval: query_interval,
         bucket_column: time_bucket&.dig(:column).presence || "timestamp",
         time_bucketed: time_bucket.present?,
         time_alias: time_bucket&.dig(:alias).presence || "time",
@@ -117,10 +120,9 @@ module HistogramMetrics
       PgQuery.parse("SELECT #{sql}").tree.stmts.first.stmt.select_stmt.target_list.first.res_target.val.func_call
     end
 
-    def derive_name(source_table, interval, filters, value_column)
+    def derive_name(source_table, filters, value_column)
       table_spec = SqlToMetrics::TableSpec.new(@sql)
       parts = [ source_table ]
-      parts << TraceToMetric.slugify_span_name(interval) if interval.present?
       parts.concat(filters.map { |f| table_spec.slug_for_filter(f) })
       parts << TraceToMetric.sanitize_dimension(value_column)
       parts << "histogram"

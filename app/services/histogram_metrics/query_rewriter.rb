@@ -16,6 +16,8 @@ module HistogramMetrics
       coverage = SqlToMetrics::Coverage.call(spec[:name], bucket_interval: spec[:bucket_interval])
       return passthrough(nil, spec[:name]) unless coverage
 
+      # Split on the stored 1-minute grid so $per queries still use complete
+      # metric minutes, then re-bin in the outer SELECT.
       segments = split_ranges(resolve_query_range(mapped[:time_range]), coverage, spec[:bucket_interval])
       return passthrough(segments, spec[:name]) if segments[:metric].nil?
 
@@ -30,6 +32,8 @@ module HistogramMetrics
 
     def compatible?(spec)
       connection = Greptime::Connection
+      return false if spec[:bucket_interval].blank? || spec[:query_interval].blank?
+      return false unless SqlToMetrics::Interval.multiple?(spec[:query_interval], spec[:bucket_interval])
       return false unless connection.table_exists?(spec[:name])
 
       columns = connection.column_names(spec[:name])
@@ -56,7 +60,7 @@ module HistogramMetrics
       select_list = spec[:outputs].map do |output|
         case output[:kind]
         when :time
-          "date_bin(#{connection.quote(spec[:bucket_interval])}, bucket) AS #{connection.quote_column_name(output[:alias])}"
+          "date_bin(#{connection.quote(spec[:query_interval])}, bucket) AS #{connection.quote_column_name(output[:alias])}"
         when :dimension
           column = connection.quote_column_name(TraceToMetric.sanitize_dimension(output[:column]))
           output[:alias] ? "#{column} AS #{connection.quote_column_name(output[:alias])}" : column

@@ -85,7 +85,7 @@ Metric tables are derived with `SqlToMetrics::TableSpec` (see `script/create_sco
 
 ## Histogram metrics
 
-`approx_percentile_cont(col, q)` queries (the dashboard's p99/p95/p50 panels) are served from histogram metrics: a `BINARY` UDDSketch column per `(bucket, dimensions)`, backfilled by the same `TraceToMetrics::BackfillJob`, appended live by `OpentelemetryTraceCreatedJob`, and read as metric segment + raw segment, merged. Results are approximate (about 1% sketch error). All histogram code lives under `app/services/histogram_metrics/`. Verify with `bin/rails runner script/check_histogram_metric_backfill.rb` (seed ActiveJob durations first with `script/seed_histogram_metric_traces.rb`). Existing databases need `bin/rails greptime:prepare` to add `trace_to_metrics.value_column`.
+`approx_percentile_cont(col, q)` queries (the dashboard's p99/p95/p50 panels) are served from histogram metrics: one 1-minute `BINARY` UDDSketch table per filter set, shared by p99/p95/p50 and every `$per`. Backfill uses `TraceToMetrics::BackfillJob`, live spans use `OpentelemetryTraceCreatedJob`, and reads merge metric + raw segments. Results are approximate (about 1% sketch error). All histogram code lives under `app/services/histogram_metrics/`. Verify with `bin/rails runner script/check_histogram_metric_backfill.rb` (seed ActiveJob durations first with `script/seed_histogram_metric_traces.rb`). Existing databases need `bin/rails greptime:prepare` to add `trace_to_metrics.value_column`.
 
 ## Tests
 

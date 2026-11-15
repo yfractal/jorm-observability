@@ -1,22 +1,22 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Run dashboard histogram (p99 / p95 / p50) queries against POST /api/v1/sql, wait for
-# backfill jobs, then re-run and compare results. Histogram counterpart of
-# script/check_counter_metric_backfill.rb.
+# Run dashboard histogram (p99 / p95 / p50) queries against POST /api/v1/sql, backfill
+# the shared 1-minute sketch tables, then re-run and compare results. Histogram
+# counterpart of script/check_gauge_metric_backfill.rb.
 #
 #   bin/rails runner script/check_histogram_metric_backfill.rb
 #
 # "before" runs the raw approx_percentile_cont query (the first call also creates the
-# histogram metric and enqueues its backfill). "after" must be served from the
-# metric table (used_metric=true) and agree within REL_TOL: the metric holds UDDSketch
-# states, the raw query uses a different approximation, so results are close, not equal.
+# histogram metric). "after" must be served from the metric table (used_metric=true)
+# and agree within REL_TOL: the metric holds UDDSketch states, the raw query uses a
+# different approximation, so results are close, not equal.
 #
 # Env:
 #   SQL_API_URL   (default http://127.0.0.1:3000/api/v1/sql)
 #   FROM_TS       (default 2026-10-22 14:00:00)
 #   TO_TS         (default 2026-10-22 15:00:00)
-#   POLL_SECONDS  (default 120)
+#   POLL_SECONDS  (unused; backfill runs in-process)
 #   REL_TOL       (default 0.05, max relative difference per value)
 #   ABS_TOL       (default 50, a value also passes if it differs by at most this
 #                  many output units (ms); sparse buckets, e.g. 2 spans, make the raw
@@ -242,7 +242,10 @@ def run_query_set(phase, queries, before: nil)
     if before
       error = max_relative_error(before[label]["data"], body["data"])
       ok = error <= REL_TOL
-      mismatches << "#{label} (max_rel_err=#{error.round(4)})" unless ok
+      unless ok
+        mismatches << "#{label} (max_rel_err=#{error.round(4)})"
+        puts "  mismatch detail raw=#{format_all_values(before[label]['data'])} metric=#{format_all_values(body['data'])}"
+      end
       not_served << label unless body["used_metric"]
       print_result(phase, label, body, match: ok)
     else
@@ -253,15 +256,26 @@ def run_query_set(phase, queries, before: nil)
   [ results, mismatches, not_served ]
 end
 
-def span_count
-  body = post_sql("SELECT COUNT(*) AS c FROM opentelemetry_traces")
-  Array(body["data"]).dig(0, "c").to_i
+def expected_histogram_names
+  sqls = TIME_BUCKETS.flat_map { |bucket| bucket_queries(bucket).values }
+  sqls.map { |sql| HistogramMetrics::Spec.call(sql)[:name] }.uniq
 end
 
-def failed_backfill_executions
+def job_metric_name(job)
+  Array(job.arguments["arguments"] || job.arguments[:arguments]).first
+end
+
+def span_count
+  row = Greptime::Connection.exec_query("SELECT COUNT(*) AS c FROM opentelemetry_traces").to_a.first
+  (row && (row["c"] || row.values.first)).to_i
+end
+
+def failed_backfill_executions(metric_names)
   SolidQueue::FailedExecution
     .joins(:job)
     .where(solid_queue_jobs: { class_name: "TraceToMetrics::BackfillJob" })
+    .includes(:job)
+    .select { |execution| metric_names.include?(job_metric_name(execution.job)) }
 end
 
 def latest_trace_watermark
@@ -273,24 +287,15 @@ def latest_trace_watermark
   SQL
   return nil if row.nil?
 
-  {
-    backfill_through_timestamp: Time.parse(row["timestamp"].to_s).utc,
-    backfill_through_trace_id: row["trace_id"].to_s,
-    backfill_through_span_id: row["span_id"].to_s,
-    backfill_finished_at: nil
-  }
+  SqlToMetrics::Watermark.snapshot_from_row(row)
 end
 
-def histogram_metrics
-  TraceToMetric.query_metrics.where(metric_type: "histogram")
-end
-
-def refresh_stale_watermarks!
+def refresh_stale_watermarks!(metric_names)
   epoch = Time.utc(1970, 1, 1)
   watermark = latest_trace_watermark
   return unless watermark
 
-  histogram_metrics.reject(&:backfill_finished?).each do |definition|
+  TraceToMetric.where(name: metric_names).reject(&:backfill_finished?).each do |definition|
     next unless definition.backfill_through_timestamp.nil? ||
       definition.backfill_through_timestamp.utc <= epoch
 
@@ -299,62 +304,41 @@ def refresh_stale_watermarks!
   end
 end
 
-def recover_failed_backfills!
-  failed = failed_backfill_executions.includes(:job).to_a
+def recover_failed_backfills!(metric_names)
+  failed = failed_backfill_executions(metric_names)
   return if failed.empty?
 
   puts "Recovering #{failed.size} failed TraceToMetrics::BackfillJob execution(s)…"
   failed.each do |execution|
     job = execution.job
-    metric_name = Array(job.arguments["arguments"] || job.arguments[:arguments]).first
+    metric_name = job_metric_name(job)
     puts "  retry #{metric_name.inspect}: #{execution.error.to_s[0, 120]}"
     execution.destroy!
     job.destroy! if job.finished_at.nil?
-    TraceToMetrics::BackfillJob.perform_later(metric_name) if metric_name.present?
   end
 end
 
-def wait_for_backfill_jobs!(timeout_seconds)
-  refresh_stale_watermarks!
-  recover_failed_backfills!
+def wait_for_backfill_jobs!(_timeout_seconds)
+  names = expected_histogram_names
+  puts "histogram metrics (shared 1-minute tables): #{names.size}"
+  refresh_stale_watermarks!(names)
+  recover_failed_backfills!(names)
 
-  deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout_seconds
-  loop do
-    pending = SolidQueue::Job
-      .where(class_name: "TraceToMetrics::BackfillJob", finished_at: nil)
-      .count
-    failed = failed_backfill_executions.count
-    unfinished_metrics = histogram_metrics.reject(&:backfill_finished?).map(&:name)
-
-    if failed.positive?
-      details = failed_backfill_executions.includes(:job).map { |f|
-        args = f.job.arguments
-        name = Array(args["arguments"] || args[:arguments]).first
-        "#{name}: #{f.error.to_s[0, 160]}"
-      }
-      abort "Backfill jobs failed (#{failed}):\n  #{details.join("\n  ")}\nIs bin/jobs running?"
-    end
-
-    if pending.zero? && unfinished_metrics.empty?
-      puts "All TraceToMetrics::BackfillJob finished."
-      return
-    end
-
-    # Unfinished metrics with no pending/failed job — re-enqueue.
-    if pending.zero? && unfinished_metrics.any?
-      unfinished_metrics.each do |name|
-        puts "Re-enqueue backfill for #{name}"
-        TraceToMetrics::BackfillJob.perform_later(name)
-      end
-    end
-
-    if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
-      abort "Timed out waiting for backfill. pending_jobs=#{pending} unfinished=#{unfinished_metrics.inspect}"
-    end
-
-    puts "Waiting for backfill… pending_jobs=#{pending} unfinished=#{unfinished_metrics.inspect}"
-    sleep 2
+  unfinished = TraceToMetric.where(name: names).reject(&:backfill_finished?)
+  if unfinished.empty?
+    puts "All histogram backfills already finished."
+    return
   end
+
+  unfinished.each do |definition|
+    puts "Backfill #{definition.name}"
+    TraceToMetrics::BackfillJob.perform_now(definition.name)
+  end
+
+  leftover = TraceToMetric.where(name: names).reject(&:backfill_finished?).map(&:name)
+  abort "Backfill did not finish: #{leftover.inspect}" if leftover.any?
+
+  puts "All histogram backfills finished."
 end
 
 puts "POST #{API_URL}"
@@ -364,7 +348,7 @@ puts "time_buckets=#{TIME_BUCKETS.inspect} rel_tol=#{REL_TOL} abs_tol=#{ABS_TOL}
 count = span_count
 puts "opentelemetry_traces rows: #{count}"
 if count.zero?
-  abort "No spans loaded. Import traces first, then re-run this script with bin/jobs running."
+  abort "No spans loaded. Import traces first, or seed with script/seed_histogram_metric_traces.rb."
 end
 
 before = {}
