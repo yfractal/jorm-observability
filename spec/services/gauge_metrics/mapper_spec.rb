@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe SqlToMetrics::Gauge::Mapper do
+RSpec.describe GaugeMetrics::Mapper do
   describe ".gauge_sql?" do
     it "detects AVG" do
       expect(described_class.gauge_sql?("SELECT AVG(duration_nano) FROM t")).to eq(true)

@@ -2,7 +2,7 @@ module HistogramMetrics
   # Same metric/raw range split as the counter rewriter. Both segments produce
   # (bucket, dimensions, sketch); the outer query merges the sketches, re-bins to
   # the query interval and evaluates each quantile with uddsketch_calc.
-  class QueryRewriter < SqlToMetrics::QueryRewriter
+  class QueryRewriter < CounterMetrics::QueryRewriter
     def self.call(sql)
       new(sql).call
     end

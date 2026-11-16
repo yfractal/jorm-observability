@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe SqlToMetrics::TableSpec do
+RSpec.describe CounterMetrics::Spec do
   describe ".call" do
     it "captures COUNT(*)" do
       sql = <<~SQL

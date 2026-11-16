@@ -28,7 +28,7 @@ RSpec.describe SqlToMetrics::HybridQuery, :no_transaction do
       GROUP BY scope_name, time
     SQL
 
-    spec = SqlToMetrics::TableSpec.call(sql)
+    spec = CounterMetrics::Spec.call(sql)
     dimensions = Array(spec[:primary_key])
     definition = Struct.new(:name, :dimensions, keyword_init: true) do
       def dimension_columns

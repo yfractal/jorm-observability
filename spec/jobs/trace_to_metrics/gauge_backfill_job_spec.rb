@@ -55,7 +55,7 @@ RSpec.describe TraceToMetrics::BackfillJob, "gauge", :no_transaction do
     definition = TraceToMetric.find(metric_name)
     expect(definition.backfill_finished?).to eq(true)
 
-    rows = TraceToMetrics::Gauge::Injector.summed_rows(metric_name)
+    rows = GaugeMetrics::Injector.summed_rows(metric_name)
     expect(rows.size).to eq(1)
     expect(rows.first["value_sum"].to_f).to eq(6_000_000.0)
     expect(rows.first["value_count"].to_i).to eq(2)

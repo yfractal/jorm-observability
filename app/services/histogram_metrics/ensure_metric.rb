@@ -1,7 +1,9 @@
+# frozen_string_literal: true
+
 module HistogramMetrics
-  # Same flow as the counter EnsureMetric (definition, watermark, backfill job);
+  # Same flow as CounterMetrics::EnsureMetric (definition, watermark, backfill job);
   # only the spec and the stored definition differ.
-  class EnsureMetric < SqlToMetrics::EnsureMetric
+  class EnsureMetric < SqlToMetrics::EnsureMetricBase
     private
 
     def build_spec

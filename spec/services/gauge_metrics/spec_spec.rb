@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe SqlToMetrics::Gauge::TableSpec do
+RSpec.describe GaugeMetrics::Spec do
   describe ".call" do
     it "builds a gauge table spec for average response" do
       sql = <<~SQL

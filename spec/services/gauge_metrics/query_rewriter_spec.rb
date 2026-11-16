@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe SqlToMetrics::Gauge::QueryRewriter, :no_transaction do
+RSpec.describe GaugeMetrics::QueryRewriter, :no_transaction do
   let(:metric_name) {
     "opentelemetry_traces_span_kind_span_kind_server_" \
       "span_attributes_http_response_status_code_is_not_null_avg_duration_nano_gauge"
@@ -29,7 +29,7 @@ RSpec.describe SqlToMetrics::Gauge::QueryRewriter, :no_transaction do
   end
 
   def seed_metric_coverage!
-    TraceToMetrics::Gauge::TableManager.create!(definition)
+    GaugeMetrics::Table.create!(definition)
     (0..5).each do |m|
       insert_metric_row(
         bucket: Time.utc(2026, 1, 1, 10, m, 0),

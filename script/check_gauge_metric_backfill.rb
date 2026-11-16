@@ -267,7 +267,7 @@ end
 
 def expected_gauge_names
   sqls = TOTAL_QUERIES.values + TIME_BUCKETS.flat_map { |bucket| bucket_queries(bucket).values }
-  sqls.map { |sql| SqlToMetrics::Gauge::TableSpec.call(sql)[:name] }.uniq
+  sqls.map { |sql| GaugeMetrics::Spec.call(sql)[:name] }.uniq
 end
 
 def job_metric_name(job)

@@ -117,7 +117,7 @@ ORDER BY time
 
 ## Gauge
 
-Metric-backed via `SqlToMetrics::Gauge::*` (verify with `bin/rails runner script/check_gauge_metric_backfill.rb`).
+Metric-backed via `GaugeMetrics::*` (verify with `bin/rails runner script/check_gauge_metric_backfill.rb`).
 
 ### Average Response
 

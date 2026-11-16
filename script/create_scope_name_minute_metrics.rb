@@ -14,7 +14,7 @@ sql = <<~SQL
   GROUP BY scope_name, time
 SQL
 
-spec = SqlToMetrics::TableSpec.call(sql)
+spec = CounterMetrics::Spec.call(sql)
 metric_name = spec[:name]
 dimensions = Array(spec[:primary_key])
 

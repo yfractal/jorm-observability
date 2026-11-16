@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe SqlToMetrics::QueryRewriter, :no_transaction do
+RSpec.describe CounterMetrics::QueryRewriter, :no_transaction do
   let(:metric_name) { "opentelemetry_traces_1_minute_counter" }
 
   def definition(dimensions: [ "scope_name" ])

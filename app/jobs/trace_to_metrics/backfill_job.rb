@@ -91,7 +91,7 @@ module TraceToMetrics
 
     def insert_aggregated!(definition, from:, to:)
       if definition.metric_type == "gauge"
-        return Gauge::Backfill.insert_aggregated!(
+        return GaugeMetrics::Backfill.insert_aggregated!(
           definition,
           from: from,
           to: to,
@@ -99,47 +99,17 @@ module TraceToMetrics
         )
       end
 
-      connection = Greptime::Connection
-      table = connection.quote_table_name(definition.name)
-      source = connection.quote_table_name("opentelemetry_traces")
-      interval = definition.bucket_interval.presence || "1 minute"
-      dimensions = Array(definition.dimensions)
-      dim_cols = dimensions.map { |d| TraceToMetric.sanitize_dimension(d) }
-      quoted_dims = dimensions.map { |d| connection.quote_column_name(d) }
-      quoted_dim_aliases = dim_cols.map { |c| connection.quote_column_name(c) }
-
-      select_dims =
-        if dimensions.empty?
-          []
-        else
-          dimensions.each_with_index.map do |raw, i|
-            "#{connection.quote_column_name(raw)} AS #{quoted_dim_aliases[i]}"
-          end
-        end
-
-      insert_cols = [ "bucket", *dim_cols, "value" ].map { |c| connection.quote_column_name(c) }
-      select_list = [
-        "date_bin(#{connection.quote(interval)}, timestamp) AS bucket",
-        *select_dims,
-        "COUNT(*) AS value"
-      ].join(", ")
-
-      group_list = [ "bucket", *quoted_dims ].join(", ")
       where = [
         watermark_and_filters_sql(definition),
-        "timestamp >= #{connection.quote(from.utc.strftime('%Y-%m-%d %H:%M:%S.%6N'))}",
-        "timestamp < #{connection.quote(to.utc.strftime('%Y-%m-%d %H:%M:%S.%6N'))}"
+        "timestamp >= #{Greptime::Connection.quote(from.utc.strftime('%Y-%m-%d %H:%M:%S.%6N'))}",
+        "timestamp < #{Greptime::Connection.quote(to.utc.strftime('%Y-%m-%d %H:%M:%S.%6N'))}"
       ].join(" AND ")
 
-      return HistogramMetrics::Backfill.insert_chunk!(definition, where_sql: where) if definition.metric_type == "histogram"
+      if definition.metric_type == "histogram"
+        return HistogramMetrics::Backfill.insert_chunk!(definition, where_sql: where)
+      end
 
-      connection.execute(<<~SQL.squish)
-        INSERT INTO #{table} (#{insert_cols.join(', ')})
-        SELECT #{select_list}
-        FROM #{source}
-        WHERE #{where}
-        GROUP BY #{group_list}
-      SQL
+      CounterMetrics::Backfill.insert_chunk!(definition, where_sql: where)
     end
 
     def metric_row_count(metric_name)

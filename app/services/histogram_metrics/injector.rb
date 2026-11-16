@@ -2,7 +2,7 @@ module HistogramMetrics
   # Appends a sketch holding one live span's value. Reuses the counter injector's
   # dimension resolution; the value is read back from the span row so any
   # numeric column works.
-  class Injector < TraceToMetrics::Injector
+  class Injector < CounterMetrics::Injector
     def call
       value_column = @definition.value_column
       return nil if value_column.blank?

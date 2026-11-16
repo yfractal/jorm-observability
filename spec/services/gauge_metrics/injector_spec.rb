@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe TraceToMetrics::Gauge::Injector, :no_transaction do
+RSpec.describe GaugeMetrics::Injector, :no_transaction do
   let(:metric_name) { "opentelemetry_traces_avg_duration_nano_gauge" }
 
   def create_definition!

@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe SqlToMetrics::Gauge::EnsureMetric, :no_transaction do
+RSpec.describe GaugeMetrics::EnsureMetric, :no_transaction do
   let(:sql) {
     <<~SQL
       SELECT AVG(duration_nano) / 1e6 AS value

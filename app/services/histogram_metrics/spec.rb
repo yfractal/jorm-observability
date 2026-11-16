@@ -121,7 +121,7 @@ module HistogramMetrics
     end
 
     def derive_name(source_table, filters, value_column)
-      table_spec = SqlToMetrics::TableSpec.new(@sql)
+      table_spec = CounterMetrics::Spec.new(@sql)
       parts = [ source_table ]
       parts.concat(filters.map { |f| table_spec.slug_for_filter(f) })
       parts << TraceToMetric.sanitize_dimension(value_column)

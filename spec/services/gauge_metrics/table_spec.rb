@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe TraceToMetrics::Gauge::TableManager, :no_transaction do
+RSpec.describe GaugeMetrics::Table, :no_transaction do
   def build_definition(name: "avg_duration_nano_gauge", dimensions: [])
     TraceToMetric.new(
       name: name,

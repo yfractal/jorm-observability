@@ -1,5 +1,5 @@
-module SqlToMetrics
-  class TableSpec
+module CounterMetrics
+  class Spec
     def self.call(sql)
       new(sql).call
     end
@@ -9,7 +9,7 @@ module SqlToMetrics
     end
 
     def call
-      mapped = Mapper.call(@sql)
+      mapped = SqlToMetrics::Mapper.call(@sql)
       validate!(mapped)
 
       dimensions = Array(mapped[:dimensions])
@@ -56,12 +56,12 @@ module SqlToMetrics
     private
 
     def validate!(mapped)
-      raise UnsupportedError, "source table is required" if mapped[:source_table].blank?
-      raise UnsupportedError, "only counter metrics are supported" unless mapped[:metric_type] == "counter"
-      raise UnsupportedError, "unsupported where predicates" if mapped[:unsupported_predicates]
+      raise SqlToMetrics::UnsupportedError, "source table is required" if mapped[:source_table].blank?
+      raise SqlToMetrics::UnsupportedError, "only counter metrics are supported" unless mapped[:metric_type] == "counter"
+      raise SqlToMetrics::UnsupportedError, "unsupported where predicates" if mapped[:unsupported_predicates]
 
       counter_aggs = Array(mapped[:res_targets]).select { |t| t[:kind] == :agg && t[:func] == "count" }
-      raise UnsupportedError, "exactly one counter aggregate is required" unless counter_aggs.size == 1
+      raise SqlToMetrics::UnsupportedError, "exactly one counter aggregate is required" unless counter_aggs.size == 1
     end
 
     def extract_distinct_column(res_targets)
@@ -101,7 +101,7 @@ module SqlToMetrics
         "#{column}_gt_#{value_slug}"
       when ">="
         "#{column}_gte_#{value_slug}"
-      when Mapper::NULL_OR_NOT_EQUAL_OP
+      when SqlToMetrics::Mapper::NULL_OR_NOT_EQUAL_OP
         "#{column}_is_null_or_ne_#{value_slug}"
       else
         column
@@ -118,10 +118,10 @@ module SqlToMetrics
 
     def validate_name!(name)
       unless name.match?(TraceToMetric::NAME_FORMAT)
-        raise UnsupportedError, "derived metric name is invalid: #{name}"
+        raise SqlToMetrics::UnsupportedError, "derived metric name is invalid: #{name}"
       end
       if TraceToMetric::RESERVED_TABLE_NAMES.include?(name)
-        raise UnsupportedError, "derived metric name is reserved: #{name}"
+        raise SqlToMetrics::UnsupportedError, "derived metric name is reserved: #{name}"
       end
     end
   end
