@@ -10,4 +10,10 @@
 #   Injector        appends a live span's counter row
 #   QueryRewriter   metric segment + raw segment, merged and re-binned
 module CounterMetrics
+  module_function
+
+  # True when the statement calls COUNT anywhere.
+  def counter_sql?(sql)
+    sql.to_s.match?(/\bcount\s*\(/i)
+  end
 end

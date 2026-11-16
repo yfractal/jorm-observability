@@ -11,4 +11,10 @@
 #   Injector        appends a live span's sum/count row
 #   QueryRewriter   metric segment + raw segment, mean re-aggregated
 module GaugeMetrics
+  module_function
+
+  # True when the statement calls AVG anywhere.
+  def gauge_sql?(sql)
+    sql.to_s.match?(/\bavg\s*\(/i)
+  end
 end

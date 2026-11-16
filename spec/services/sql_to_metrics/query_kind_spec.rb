@@ -13,8 +13,13 @@ RSpec.describe SqlToMetrics::QueryKind do
     expect(described_class.call(sql)).to eq(:gauge)
   end
 
-  it "defaults to counter" do
+  it "detects counter SQL" do
     sql = "SELECT COUNT(*) FROM opentelemetry_traces WHERE parent_span_id IS NULL"
     expect(described_class.call(sql)).to eq(:counter)
+  end
+
+  it "returns unsupported when no metric shape matches" do
+    sql = "SELECT SUM(duration_nano) FROM opentelemetry_traces"
+    expect(described_class.call(sql)).to eq(:unsupported)
   end
 end

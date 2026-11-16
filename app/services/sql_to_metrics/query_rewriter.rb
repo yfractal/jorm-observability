@@ -8,7 +8,14 @@ module SqlToMetrics
       case QueryKind.call(sql)
       when :histogram then HistogramMetrics::QueryRewriter.call(sql)
       when :gauge then GaugeMetrics::QueryRewriter.call(sql)
-      else CounterMetrics::QueryRewriter.call(sql)
+      when :counter then CounterMetrics::QueryRewriter.call(sql)
+      else
+        CounterMetrics::QueryRewriter::Result.new(
+          sql: sql.to_s,
+          used_metric: false,
+          segments: { metric: nil, raw: [ :all ] },
+          metric_name: nil
+        )
       end
     end
 

@@ -8,10 +8,6 @@ module GaugeMetrics
   class Mapper < SqlToMetrics::Mapper
     GAUGE_FUNCS = %w[avg].freeze
 
-    def self.gauge_sql?(sql)
-      sql.to_s.match?(/\bavg\s*\(/i)
-    end
-
     private
 
     def classify_res_target(res_target)

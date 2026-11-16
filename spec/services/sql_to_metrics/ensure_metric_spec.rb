@@ -20,4 +20,14 @@ RSpec.describe SqlToMetrics::EnsureMetric do
     expect(HistogramMetrics::EnsureMetric).to receive(:new).with(sql).and_return(instance_double(HistogramMetrics::EnsureMetric, call: :ok))
     expect(described_class.new(sql).call).to eq(:ok)
   end
+
+  it "returns an empty result for unsupported SQL" do
+    sql = "SELECT SUM(duration_nano) FROM opentelemetry_traces"
+    expect(CounterMetrics::EnsureMetric).not_to receive(:new)
+    expect(GaugeMetrics::EnsureMetric).not_to receive(:new)
+    expect(HistogramMetrics::EnsureMetric).not_to receive(:new)
+
+    result = described_class.new(sql).call
+    expect(result).to have_attributes(metric_name: nil, created: false, enqueued_backfill: false)
+  end
 end

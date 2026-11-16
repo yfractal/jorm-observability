@@ -1,15 +1,16 @@
 # frozen_string_literal: true
 
 module SqlToMetrics
-  # Classifies an analytics SQL string as :histogram, :gauge, or :counter.
+  # Classifies an analytics SQL string as :histogram, :gauge, :counter, or :unsupported.
   module QueryKind
     module_function
 
     def call(sql)
       return :histogram if HistogramMetrics.histogram_sql?(sql)
-      return :gauge if GaugeMetrics::Mapper.gauge_sql?(sql)
+      return :gauge if GaugeMetrics.gauge_sql?(sql)
+      return :counter if CounterMetrics.counter_sql?(sql)
 
-      :counter
+      :unsupported
     end
   end
 end

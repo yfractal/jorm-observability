@@ -13,7 +13,9 @@ module SqlToMetrics
       case QueryKind.call(@sql)
       when :histogram then HistogramMetrics::EnsureMetric.new(@sql).call
       when :gauge then GaugeMetrics::EnsureMetric.new(@sql).call
-      else CounterMetrics::EnsureMetric.new(@sql).call
+      when :counter then CounterMetrics::EnsureMetric.new(@sql).call
+      else
+        Result.new(metric_name: nil, created: false, enqueued_backfill: false)
       end
     end
   end
