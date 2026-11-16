@@ -30,7 +30,7 @@ RSpec.describe SqlToMetrics::EnsureMetric, :no_transaction do
     SQL
 
     expect {
-      @result = described_class.call(sql)
+      @result = described_class.new(sql).call
     }.to have_enqueued_job(TraceToMetrics::BackfillJob)
 
     expect(@result.created).to eq(true)
@@ -59,9 +59,9 @@ RSpec.describe SqlToMetrics::EnsureMetric, :no_transaction do
       GROUP BY time
     SQL
 
-    described_class.call(sql)
+    described_class.new(sql).call
     expect {
-      result = described_class.call(sql)
+      result = described_class.new(sql).call
       expect(result.created).to eq(false)
       expect(result.enqueued_backfill).to eq(false)
     }.not_to have_enqueued_job(TraceToMetrics::BackfillJob)
@@ -75,7 +75,7 @@ RSpec.describe SqlToMetrics::EnsureMetric, :no_transaction do
       GROUP BY time
     SQL
 
-    result = described_class.call(sql)
+    result = described_class.new(sql).call
     expect(result.created).to eq(false)
     expect(result.metric_name).to be_nil
   end
@@ -95,7 +95,7 @@ RSpec.describe SqlToMetrics::EnsureMetric, :no_transaction do
     SQL
 
     expect {
-      @result = described_class.call(sql)
+      @result = described_class.new(sql).call
     }.to have_enqueued_job(TraceToMetrics::BackfillJob)
 
     expect(@result.created).to eq(true)
@@ -129,7 +129,7 @@ RSpec.describe SqlToMetrics::EnsureMetric, :no_transaction do
     SQL
 
     expect {
-      @result = described_class.call(sql)
+      @result = described_class.new(sql).call
     }.to have_enqueued_job(TraceToMetrics::BackfillJob)
 
     expect(@result.created).to eq(true)

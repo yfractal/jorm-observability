@@ -2,17 +2,15 @@ module SqlToMetrics
   class EnsureMetric
     Result = Struct.new(:metric_name, :created, :enqueued_backfill, keyword_init: true)
 
-    def self.call(sql)
-      klass = HistogramMetrics.histogram_sql?(sql) ? HistogramMetrics::EnsureMetric : self
-      klass.new(sql).call
-    end
-
     def initialize(sql)
       @sql = sql.to_s
     end
 
     def call
-      return Gauge::EnsureMetric.call(@sql) if Gauge::Mapper.gauge_sql?(@sql)
+      if !is_a?(HistogramMetrics::EnsureMetric) && HistogramMetrics.histogram_sql?(@sql)
+        return HistogramMetrics::EnsureMetric.new(@sql).call
+      end
+      return Gauge::EnsureMetric.new(@sql).call if Gauge::Mapper.gauge_sql?(@sql)
 
       spec = build_spec
       existing = TraceToMetric.find_by(name: spec[:name])

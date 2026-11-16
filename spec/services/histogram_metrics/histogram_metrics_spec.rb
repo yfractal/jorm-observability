@@ -50,7 +50,7 @@ RSpec.describe HistogramMetrics, :no_transaction do
     t0 = Time.utc(2026, 1, 1, 10, 0, 0)
     (1..100).each { |i| create_trace!(t0 + i % 50, i) }
 
-    SqlToMetrics::EnsureMetric.call(sql)
+    SqlToMetrics::EnsureMetric.new(sql).call
     TraceToMetrics::BackfillJob.new.perform(metric_name)
     expect(TraceToMetric.find(metric_name).metric_type).to eq("histogram")
 

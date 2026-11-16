@@ -5,10 +5,6 @@ module SqlToMetrics
     class EnsureMetric
       Result = Struct.new(:metric_name, :created, :enqueued_backfill, keyword_init: true)
 
-      def self.call(sql)
-        new(sql).call
-      end
-
       def initialize(sql)
         @sql = sql.to_s
       end

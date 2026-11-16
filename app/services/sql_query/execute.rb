@@ -10,7 +10,7 @@ module SqlQuery
 
     def call
       validated = ReadOnly.validate!(@sql)
-      SqlToMetrics::EnsureMetric.call(validated)
+      SqlToMetrics::EnsureMetric.new(validated).call
       run_with_metric_fallback(validated)
     end
 

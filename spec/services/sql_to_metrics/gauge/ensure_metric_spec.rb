@@ -20,7 +20,7 @@ RSpec.describe SqlToMetrics::Gauge::EnsureMetric, :no_transaction do
 
   it "creates a gauge metric definition and enqueues backfill" do
     expect {
-      result = described_class.call(sql)
+      result = described_class.new(sql).call
       expect(result.created).to eq(true)
       expect(result.enqueued_backfill).to eq(true)
       expect(result.metric_name).to eq(metric_name)
@@ -34,10 +34,10 @@ RSpec.describe SqlToMetrics::Gauge::EnsureMetric, :no_transaction do
   end
 
   it "is a no-op when the metric already exists" do
-    described_class.call(sql)
+    described_class.new(sql).call
 
     expect {
-      result = described_class.call(sql)
+      result = described_class.new(sql).call
       expect(result.created).to eq(false)
       expect(result.enqueued_backfill).to eq(false)
     }.not_to have_enqueued_job(TraceToMetrics::BackfillJob)
