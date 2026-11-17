@@ -9,6 +9,73 @@ Maintain metrics based on the query; use the metrics to speed up the query as it
 1. Maintain a metric (materialized view) based on the traces query
 2. Use the metric (materialized view) to avoid aggregation for the query
 
+## Architecture
+
+Write path: a span is injected into the metric, and backfill fills complete buckets.
+
+Query path: hybrid execution reads the metric through **now − 5 min**, queries traces for the tail and any gap, then concatenates the two.
+
+```mermaid
+flowchart TB
+  sql["SQL query<br/>incoming analytics"]
+  span["Span created<br/>live ingest"]
+  plan["Determine metric<br/>avoid aggregation"]
+  hybrid["Hybrid query<br/>metric + traces"]
+  def["Metric definition<br/>materialized view"]
+  mq["Metric query<br/>end = now − 5 min"]
+  tq["Trace query<br/>uncovered tail"]
+  inject["Maintain metric<br/>span-to-metric"]
+  backfill["Backfill<br/>complete buckets"]
+  concat["Concatenate<br/>metric ∪ traces"]
+  store["Metric store<br/>in-memory or DB"]
+  result["Result<br/>no live aggregation"]
+
+  sql --> plan
+  sql --> hybrid
+  plan --> def
+  def --> inject
+  def --> backfill
+  span --> inject
+  inject --> store
+  backfill --> store
+  hybrid --> mq
+  hybrid --> tq
+  store -.->|read| mq
+  mq --> concat
+  tq --> concat
+  concat --> result
+
+  subgraph writePath [Write]
+    span
+    inject
+    backfill
+  end
+
+  subgraph queryPath [Query]
+    sql
+    plan
+    hybrid
+    mq
+    tq
+    concat
+    result
+  end
+```
+
+### Hybrid merge window
+
+Metric query ends at now − 5 minutes. The trace query covers the lag window and any backfill gap.
+
+```mermaid
+flowchart LR
+  coverage["Metric coverage<br/>complete buckets"] --> cut["now − 5 min"] --> tail["Trace tail<br/>now"]
+```
+
+- **Live inject:** seeing a point at time *x* does not mean every earlier span has been injected. Each span updates metrics within 5 minutes.
+- **Backfill:** once a metric bucket exists, it includes every span in that bucket range.
+
+The split is safe because the 5-minute trace query is fast, and the metric side is already aggregated.
+
 ## Correctness and Concurrency
 ### Metric Generation
 When we receive a SQL query, we determine what kind of metric (materialized view) can be used to avoid aggregation.
