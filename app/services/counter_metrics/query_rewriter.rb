@@ -121,6 +121,10 @@ module CounterMetrics
       { from: from, to: to }
     end
 
+    # TODO: check it handles bucket interval correctly or not
+    # the metric is in bucket, so a metric at a bucket x can include traces in [x, x + bucket_interval),
+    # the when we query the traces, the query range should not overlap with it
+    # Additionally, the span's metrics are created concurrently, aka the metrics is kind out of order, we need to handle it.
     def split_ranges(query_range, coverage, bucket_interval)
       q = normalize_half_open(query_range)
       qs = q[:from]
