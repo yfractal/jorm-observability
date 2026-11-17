@@ -27,7 +27,7 @@ module TraceToMetrics
       when "counter"
         CounterMetrics::Injector.new(@trace, @definition).call
       when "gauge"
-        GaugeMetrics::Injector.call(@trace, @definition)
+        GaugeMetrics::Injector.new(@trace, @definition).call
       when "histogram"
         HistogramMetrics::Injector.new(@trace, @definition).call
       else
