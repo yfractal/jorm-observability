@@ -2,12 +2,23 @@
 
 ## Key Idea
 
-Maintain materialized views based on query; use the materialized view for query optimization.
+Maintain metrics based on query; use the metrics to speed up query as it doesn't require do aggregation.
 
 ## Query optimization
 
-1. Maintain materialized view based on traces query
-2. When query, query on the materialized view
+1. Maintain metric(materialized view) based on traces query
+2. Use the metric(materialized view) avoid aggregation for the traces query
+
+## Correctness and Concurrency
+### Metric Generation
+When receive a sql, we determine what kind of metric(materialized view) can be used to avoid aggregation.
+
+Then, when a span has been created, we maintain the metric. It likes otel span to metric connector, but require us to figure out what kind of metrics(materialized view) we need to maintain.
+
+### Query
+For a query, if it has relative metric, we query the metric. As the metric may not generated for all existing span, we concat 2 results: metric result and trace result.
+
+For metric query range, the end time is current time - 5 minutes, as we create such metrics concurrently, any give time, a span's metrics are created in 5 minutes. Such assumption is valid and useful -- we can guarantee this and 5 minutes trace query is fast.
 
 ## Verification
 
@@ -30,28 +41,6 @@ Maintain materialized views based on query; use the materialized view for query 
 1. [todo] Log-based metrics
 2. [TBD] Materialized view generation
 
-### Read path (summary)
-
-```mermaid
-sequenceDiagram
-  participant C as Client
-  participant HQ as Hybrid / MV query
-  participant MV as Materialized view
-  participant T as opentelemetry_traces
-
-  C->>HQ: analytics SQL
-  HQ->>HQ: match / ensure MV from query
-  alt MV covers range
-    HQ->>MV: aggregate read
-  else partial coverage
-    HQ->>MV: covered buckets
-    HQ->>T: open / uncovered range
-  else no MV
-    HQ->>T: raw query
-  end
-  HQ-->>C: result rows
-```
-
 ### Performance targets
 
 | Use case | MV kind | Improvement |
@@ -59,3 +48,6 @@ sequenceDiagram
 | Ad-hoc analytics | In-memory (todo) | 2x ~ 5x (tested) |
 | Dashboard long window | DB MV | 10x ~ 100x (estimated) |
 | Log-based metrics (todo) | DB / AI-assisted | Large gain on complex queries |
+
+### Links
+1. https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/connector/spanmetricsconnector/README.md
